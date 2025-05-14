@@ -78,6 +78,17 @@ class Transform {
         return velocity;
     }
 
+    /**
+     * @brief Calculates the Jacobian matrix using finite difference
+     *
+     * This method computes the Jacobian matrix using finite difference
+     * approximation. It calculates the partial derivatives of the transformation
+     * with respect to each component of the input position.
+     *
+     * @param pos The position at which to calculate the Jacobian
+     * @param t The time parameter
+     * @return std::array<std::array<Scalar, dim>, dim> The Jacobian matrix
+     */
     std::array<std::array<Scalar, dim>, dim> finite_difference_Jacobian(
         std::array<Scalar, dim> pos, Scalar t) const {
         constexpr Scalar eps = 1e-6;
