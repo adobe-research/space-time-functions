@@ -12,7 +12,7 @@
 namespace stf {
 
 /**
- * @brief Polyline transformation using Bishop frames.
+ * @brief A transformation that follows a polyline and uses Bishop frames for orientation.
  *
  * This class represents a piecewise linear curve (polyline) in N-dimensional space and provides
  * transformation, velocity, and Jacobian computations along the polyline using Bishop frames for
