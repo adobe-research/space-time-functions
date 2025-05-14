@@ -8,6 +8,7 @@ namespace stf {
 template <int dim>
 class ImplicitBall : ImplicitFunction<dim>
 {
+public:
     /**
      * @brief Constructs a new implicit ball.
      *
