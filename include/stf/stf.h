@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stf/maths/all.h>
+
 #include <stf/transforms/all.h>
 #include <stf/primitives/all.h>
 
