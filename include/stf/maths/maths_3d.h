@@ -76,7 +76,7 @@ inline Mat3 multiply(const Mat3& A, const Mat3& B)
 }
 
 // Rodrigues' rotation formula
-inline Mat3 rotationMatrix(const Vec3& from, const Vec3& to)
+inline Mat3 rotation_matrix(const Vec3& from, const Vec3& to)
 {
     Vec3 v1 = normalize(from);
     Vec3 v2 = normalize(to);
