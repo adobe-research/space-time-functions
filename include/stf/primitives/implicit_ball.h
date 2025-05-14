@@ -6,7 +6,7 @@
 namespace stf {
 
 template <int dim>
-class ImplicitBall : ImplicitFunction<dim>
+class ImplicitBall : public ImplicitFunction<dim>
 {
 public:
     /**
