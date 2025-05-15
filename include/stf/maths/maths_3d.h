@@ -113,4 +113,10 @@ inline Vec3 apply_matrix(const Mat3& M, const Vec3& v)
         M[2][0] * v[0] + M[2][1] * v[1] + M[2][2] * v[2]};
 }
 
+inline Mat3 transpose(const Mat3& M)
+{
+    return {
+        {{M[0][0], M[1][0], M[2][0]}, {M[0][1], M[1][1], M[2][1]}, {M[0][2], M[1][2], M[2][2]}}};
+}
+
 } // namespace stf

@@ -62,11 +62,11 @@ public:
         auto& p0 = m_points[segment];
         auto& p1 = m_points[segment + 1];
 
-        pos = apply_matrix(m_frames[segment], pos);
-
         for (int i = 0; i < dim; ++i) {
-            pos[i] += p0[i] + alpha * (p1[i] - p0[i]);
+            pos[i] -= p0[i] + alpha * (p1[i] - p0[i]);
         }
+
+        pos = apply_matrix(transpose(m_frames[segment]), pos);
         return pos;
     }
 
@@ -91,9 +91,9 @@ public:
 
         std::array<Scalar, dim> velocity;
         for (int i = 0; i < dim; ++i) {
-            velocity[i] = (p1[i] - p0[i]) * (m_points.size() - 1);
+            velocity[i] = (p0[i] - p1[i]) * (m_points.size() - 1);
         }
-        return velocity;
+        return apply_matrix(transpose(m_frames[segment]), velocity);
     }
 
     /**
@@ -113,7 +113,7 @@ public:
         }
 
         auto [segment, alpha] = find_segment(t);
-        return m_frames[segment];
+        return transpose(m_frames[segment]);
     }
 
 private:

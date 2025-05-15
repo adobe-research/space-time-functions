@@ -32,7 +32,8 @@ void check_jacobian(
 
 TEST_CASE("transform", "[stf]")
 {
-    SECTION("Rotation 2D") {
+    SECTION("Rotation 2D")
+    {
         stf::Rotation<2> rotation({0.0, 0.0}, {0, 0});
 
         auto p0 = rotation.transform({1, 0}, 0);
@@ -57,12 +58,14 @@ TEST_CASE("transform", "[stf]")
         check_jacobian(rotation, {1, 1}, 0.75);
     }
 
-    SECTION("Compose") {
+    SECTION("Compose")
+    {
         stf::Translation<3> translation({1, 0, 0});
         stf::Rotation<3> rotation({0, 0, 0}, {0, 0, 1});
         stf::Compose<3> compose(rotation, translation);
 
-        SECTION("Origin at t=0") {
+        SECTION("Origin at t=0")
+        {
             auto p0 = compose.transform({0, 0, 0}, 0);
             REQUIRE_THAT(p0[0], Catch::Matchers::WithinAbs(0, 1e-6));
             REQUIRE_THAT(p0[1], Catch::Matchers::WithinAbs(0, 1e-6));
@@ -71,7 +74,8 @@ TEST_CASE("transform", "[stf]")
             check_jacobian(compose, {0, 0, 0}, 0);
         }
 
-        SECTION("Origin at t=0.5") {
+        SECTION("Origin at t=0.5")
+        {
             auto p0 = compose.transform({0, 0, 0}, 0.5);
             REQUIRE_THAT(p0[0], Catch::Matchers::WithinAbs(0.5, 1e-6));
             REQUIRE_THAT(p0[1], Catch::Matchers::WithinAbs(0, 1e-6));
@@ -80,7 +84,8 @@ TEST_CASE("transform", "[stf]")
             check_jacobian(compose, {0, 0, 0}, 0.5);
         }
 
-        SECTION("Origin at t=1") {
+        SECTION("Origin at t=1")
+        {
             auto p0 = compose.transform({0, 0, 0}, 1);
             REQUIRE_THAT(p0[0], Catch::Matchers::WithinAbs(1, 1e-6));
             REQUIRE_THAT(p0[1], Catch::Matchers::WithinAbs(0, 1e-6));
@@ -89,7 +94,8 @@ TEST_CASE("transform", "[stf]")
             check_jacobian(compose, {0, 0, 0}, 1);
         }
 
-        SECTION("[1, 0, 0] at t=0") {
+        SECTION("[1, 0, 0] at t=0")
+        {
             auto p0 = compose.transform({1, 0, 0}, 0);
             REQUIRE_THAT(p0[0], Catch::Matchers::WithinAbs(1, 1e-6));
             REQUIRE_THAT(p0[1], Catch::Matchers::WithinAbs(0, 1e-6));
@@ -98,7 +104,8 @@ TEST_CASE("transform", "[stf]")
             check_jacobian(compose, {1, 0, 0}, 0);
         }
 
-        SECTION("[1, 0, 0] at t=0.5") {
+        SECTION("[1, 0, 0] at t=0.5")
+        {
             auto p0 = compose.transform({1, 0, 0}, 0.5);
             REQUIRE_THAT(p0[0], Catch::Matchers::WithinAbs(-0.5, 1e-6));
             REQUIRE_THAT(p0[1], Catch::Matchers::WithinAbs(0, 1e-6));
@@ -107,7 +114,8 @@ TEST_CASE("transform", "[stf]")
             check_jacobian(compose, {1, 0, 0}, 0.5);
         }
 
-        SECTION("[1, 0, 0] at t=1.0") {
+        SECTION("[1, 0, 0] at t=1.0")
+        {
             auto p0 = compose.transform({1, 0, 0}, 1.0);
             REQUIRE_THAT(p0[0], Catch::Matchers::WithinAbs(2, 1e-6));
             REQUIRE_THAT(p0[1], Catch::Matchers::WithinAbs(0, 1e-6));
@@ -117,10 +125,12 @@ TEST_CASE("transform", "[stf]")
         }
     }
 
-    SECTION("Polyline") {
+    SECTION("Polyline")
+    {
         stf::Polyline<3> transform({{0, 0, 0}, {1, 0, 0}, {0, 1, 0}});
 
-        SECTION("[0, 0, 0] at t=0") {
+        SECTION("[0, 0, 0] at t=0")
+        {
             auto p0 = transform.transform({0, 0, 0}, 0);
             REQUIRE_THAT(p0[0], Catch::Matchers::WithinAbs(0, 1e-6));
             REQUIRE_THAT(p0[1], Catch::Matchers::WithinAbs(0, 1e-6));
@@ -129,38 +139,42 @@ TEST_CASE("transform", "[stf]")
             check_jacobian(transform, {0, 0, 0}, 0);
         }
 
-        SECTION("[0, 0, 0] at t=0.25") {
+        SECTION("[0, 0, 0] at t=0.25")
+        {
             auto p0 = transform.transform({0, 0, 0}, 0.25);
-            REQUIRE_THAT(p0[0], Catch::Matchers::WithinAbs(0.5, 1e-6));
+            REQUIRE_THAT(p0[0], Catch::Matchers::WithinAbs(0, 1e-6));
             REQUIRE_THAT(p0[1], Catch::Matchers::WithinAbs(0, 1e-6));
-            REQUIRE_THAT(p0[2], Catch::Matchers::WithinAbs(0, 1e-6));
+            REQUIRE_THAT(p0[2], Catch::Matchers::WithinAbs(-0.5, 1e-6));
             check_velocity(transform, {0, 0, 0}, 0.25);
             check_jacobian(transform, {0, 0, 0}, 0.25);
         }
 
-        SECTION("[0, 0, 0] at t=1.0") {
+        SECTION("[0, 0, 0] at t=1.0")
+        {
             auto p0 = transform.transform({0, 0, 0}, 1.0);
             REQUIRE_THAT(p0[0], Catch::Matchers::WithinAbs(0, 1e-6));
-            REQUIRE_THAT(p0[1], Catch::Matchers::WithinAbs(1, 1e-6));
-            REQUIRE_THAT(p0[2], Catch::Matchers::WithinAbs(0, 1e-6));
+            REQUIRE_THAT(p0[1], Catch::Matchers::WithinAbs(std::sqrt(2) / 2, 1e-6));
+            REQUIRE_THAT(p0[2], Catch::Matchers::WithinAbs(-std::sqrt(2) / 2, 1e-6));
             check_velocity(transform, {0, 0, 0}, 1.0);
             check_jacobian(transform, {0, 0, 0}, 1);
         }
 
-        SECTION("[1, 0, 0] at t=0.25") {
+        SECTION("[1, 0, 0] at t=0.25")
+        {
             auto p0 = transform.transform({1, 0, 0}, 0.25);
-            REQUIRE_THAT(p0[0], Catch::Matchers::WithinAbs(0.5, 1e-6));
+            REQUIRE_THAT(p0[0], Catch::Matchers::WithinAbs(0, 1e-6));
             REQUIRE_THAT(p0[1], Catch::Matchers::WithinAbs(0, 1e-6));
-            REQUIRE_THAT(p0[2], Catch::Matchers::WithinAbs(-1, 1e-6));
+            REQUIRE_THAT(p0[2], Catch::Matchers::WithinAbs(0.5, 1e-6));
             check_velocity(transform, {1, 0, 0}, 0.25);
             check_jacobian(transform, {1, 0, 0}, 0.25);
         }
 
-        SECTION("[1, 0, 0] at t=0.75") {
+        SECTION("[1, 0, 0] at t=0.75")
+        {
             auto p0 = transform.transform({1, 0, 0}, 0.75);
-            REQUIRE_THAT(p0[0], Catch::Matchers::WithinAbs(0.5, 1e-6));
-            REQUIRE_THAT(p0[1], Catch::Matchers::WithinAbs(0.5, 1e-6));
-            REQUIRE_THAT(p0[2], Catch::Matchers::WithinAbs(-1, 1e-6));
+            REQUIRE_THAT(p0[0], Catch::Matchers::WithinAbs(0, 1e-6));
+            REQUIRE_THAT(p0[1], Catch::Matchers::WithinAbs(0, 1e-6));
+            REQUIRE_THAT(p0[2], Catch::Matchers::WithinAbs(-std::sqrt(2) / 2, 1e-6));
             check_velocity(transform, {1, 0, 0}, 0.75);
             check_jacobian(transform, {1, 0, 0}, 0.75);
         }
