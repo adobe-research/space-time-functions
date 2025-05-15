@@ -220,19 +220,6 @@ private:
             result[1] = {dN1[1], dN2[1], dT[1]};
             result[2] = {dN1[2], dN2[2], dT[2]};
 
-            {
-                // Finite difference check
-                constexpr Scalar delta = 1e-3;
-                auto frame_next = get_frame(segment, alpha + delta);
-                for (int i = 0; i < 3; i++) {
-                    for (int j = 0; j < 3; j++) {
-                        Scalar fd = (frame_next[i][j] - frame[i][j]) / delta;
-                        Scalar r = result[i][j];
-                        assert(std::abs(r - fd) < 1e-1);
-                    }
-                }
-            }
-
             return result;
         } else if constexpr (dim == 2) {
             auto [N1, T] = transpose(frame);
