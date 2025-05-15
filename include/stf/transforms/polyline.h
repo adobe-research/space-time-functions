@@ -123,11 +123,13 @@ private:
      * @param t The parameter along the polyline in [0, 1].
      * @return A tuple (segment index, alpha) where alpha is the interpolation factor within the
      * segment.
+     *
+     * @note This function will return the first/last semgment if t is out of [0, 1] bound.
+     * alpha will also be out of [0, 1] bound to allow extrapolation.
      */
     std::tuple<size_t, Scalar> find_segment(Scalar t) const
     {
-        size_t segment = static_cast<size_t>(t * (m_points.size() - 1));
-        segment = std::max(segment, size_t(0)); // Clamp to first segment
+        size_t segment = static_cast<size_t>(std::max(Scalar(0), t) * (m_points.size() - 1));
         segment = std::min(segment, m_points.size() - 2); // Clamp to last segment
         Scalar alpha = t * (m_points.size() - 1) - segment;
         return {segment, alpha};

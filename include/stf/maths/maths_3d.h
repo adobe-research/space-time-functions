@@ -4,6 +4,7 @@
 
 #include <array>
 #include <cmath>
+#include <span>
 #include <stdexcept>
 
 namespace stf {
@@ -117,6 +118,62 @@ inline Mat3 transpose(const Mat3& M)
 {
     return {
         {{M[0][0], M[1][0], M[2][0]}, {M[0][1], M[1][1], M[2][1]}, {M[0][2], M[1][2], M[2][2]}}};
+}
+
+inline Vec3 bezier(std::span<const Vec3, 4> control_points, Scalar t)
+{
+    Scalar u = 1 - t;
+    Scalar uu = u * u;
+    Scalar tt = t * t;
+    Scalar uuu = uu * u;
+    Scalar uut = uu * t;
+    Scalar utt = u * tt;
+    Scalar ttt = tt * t;
+
+    return {
+        uuu * control_points[0][0] + 3 * uut * control_points[1][0] +
+            3 * utt * control_points[2][0] + ttt * control_points[3][0],
+
+        uuu * control_points[0][1] + 3 * uut * control_points[1][1] +
+            3 * utt * control_points[2][1] + ttt * control_points[3][1],
+
+        uuu * control_points[0][2] + 3 * uut * control_points[1][2] +
+            3 * utt * control_points[2][2] + ttt * control_points[3][2]};
+}
+
+inline Vec3 bezier_derivative(std::span<const Vec3, 4> control_points, Scalar t)
+{
+    Scalar u = 1 - t;
+    Scalar uu = u * u;
+    Scalar tt = t * t;
+
+    return {
+        3 * uu * (control_points[1][0] - control_points[0][0]) +
+            6 * u * t * (control_points[2][0] - control_points[1][0]) +
+            3 * tt * (control_points[3][0] - control_points[2][0]),
+
+        3 * uu * (control_points[1][1] - control_points[0][1]) +
+            6 * u * t * (control_points[2][1] - control_points[1][1]) +
+            3 * tt * (control_points[3][1] - control_points[2][1]),
+
+        3 * uu * (control_points[1][2] - control_points[0][2]) +
+            6 * u * t * (control_points[2][2] - control_points[1][2]) +
+            3 * tt * (control_points[3][2] - control_points[2][2])};
+}
+
+inline Vec3 bezier_second_derivative(std::span<const Vec3, 4> control_points, Scalar t)
+{
+    Scalar u = 1 - t;
+
+    return {
+        6 * u * (control_points[2][0] - 2 * control_points[1][0] + control_points[0][0]) +
+            6 * t * (control_points[3][0] - 2 * control_points[2][0] + control_points[1][0]),
+
+        6 * u * (control_points[2][1] - 2 * control_points[1][1] + control_points[0][1]) +
+            6 * t * (control_points[3][1] - 2 * control_points[2][1] + control_points[1][1]),
+
+        6 * u * (control_points[2][2] - 2 * control_points[1][2] + control_points[0][2]) +
+            6 * t * (control_points[3][2] - 2 * control_points[2][2] + control_points[1][2])};
 }
 
 } // namespace stf

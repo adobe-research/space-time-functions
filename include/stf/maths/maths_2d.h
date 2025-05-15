@@ -4,6 +4,7 @@
 
 #include <array>
 #include <cmath>
+#include <span>
 #include <stdexcept>
 
 namespace stf {
@@ -62,6 +63,43 @@ inline Vec2 apply_matrix(const Mat2& M, const Vec2& v)
 inline Mat2 transpose(const Mat2& M)
 {
     return {{{M[0][0], M[1][0]}, {M[0][1], M[1][1]}}};
+}
+
+inline Vec2 bezier(std::span<const Vec2, 4> control_points, Scalar t)
+{
+    Scalar u = 1 - t;
+    return {
+        u * u * u * control_points[0][0] + 3 * u * u * t * control_points[1][0] +
+            3 * u * t * t * control_points[2][0] + t * t * t * control_points[3][0],
+        u * u * u * control_points[0][1] + 3 * u * u * t * control_points[1][1] +
+            3 * u * t * t * control_points[2][1] + t * t * t * control_points[3][1]};
+}
+
+inline Vec2 bezier_derivative(std::span<const Vec2, 4> control_points, Scalar t)
+{
+    Scalar u = 1 - t;
+    Scalar uu = u * u;
+    Scalar tt = t * t;
+
+    return {
+        3 * uu * (control_points[1][0] - control_points[0][0]) +
+            6 * u * t * (control_points[2][0] - control_points[1][0]) +
+            3 * tt * (control_points[3][0] - control_points[2][0]),
+
+        3 * uu * (control_points[1][1] - control_points[0][1]) +
+            6 * u * t * (control_points[2][1] - control_points[1][1]) +
+            3 * tt * (control_points[3][1] - control_points[2][1])};
+}
+
+inline Vec2 bezier_second_derivative(std::span<const Vec2, 4> control_points, Scalar t)
+{
+    Scalar u = 1 - t;
+
+    return {
+        6 * u * (control_points[2][0] - 2 * control_points[1][0] + control_points[0][0]) +
+            6 * t * (control_points[3][0] - 2 * control_points[2][0] + control_points[1][0]),
+        6 * u * (control_points[2][1] - 2 * control_points[1][1] + control_points[0][1]) +
+            6 * t * (control_points[3][1] - 2 * control_points[2][1] + control_points[1][1])};
 }
 
 } // namespace stf

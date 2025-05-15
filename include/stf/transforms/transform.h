@@ -17,8 +17,9 @@ namespace stf {
  * @tparam dim The dimensionality of the space (2D or 3D)
  */
 template <int dim>
-class Transform {
-   public:
+class Transform
+{
+public:
     /**
      * @brief Transforms a point in space according to the transformation rules.
      *
@@ -26,8 +27,7 @@ class Transform {
      * @param t The time parameter for time-dependent transformations
      * @return std::array<Scalar, dim> The transformed position
      */
-    virtual std::array<Scalar, dim> transform(std::array<Scalar, dim> pos,
-                                              Scalar t) const = 0;
+    virtual std::array<Scalar, dim> transform(std::array<Scalar, dim> pos, Scalar t) const = 0;
 
     /**
      * @brief Calculates the velocity of a point under the transformation.
@@ -36,8 +36,7 @@ class Transform {
      * @param t The time parameter for time-dependent transformations
      * @return std::array<Scalar, dim> The velocity vector
      */
-    virtual std::array<Scalar, dim> velocity(std::array<Scalar, dim> pos,
-                                             Scalar t) const = 0;
+    virtual std::array<Scalar, dim> velocity(std::array<Scalar, dim> pos, Scalar t) const = 0;
 
     /**
      * @brief Calculates the Jacobian matrix of the transformation with respect
@@ -53,7 +52,8 @@ class Transform {
      * @return std::array<std::array<Scalar, dim>, dim> The Jacobian matrix
      */
     virtual std::array<std::array<Scalar, dim>, dim> position_Jacobian(
-        std::array<Scalar, dim> pos, Scalar t) const = 0;
+        std::array<Scalar, dim> pos,
+        Scalar t) const = 0;
 
     /**
      * @brief Calculates velocity using finite difference approximation.
@@ -63,12 +63,13 @@ class Transform {
      *
      * @param pos The position at which to calculate the velocity
      * @param t The time parameter
+     * @param delta The small perturbation used for finite difference
      * @return std::array<Scalar, dim> The approximated velocity vector
      */
-    std::array<Scalar, dim> finite_difference_velocity(
-        std::array<Scalar, dim> pos, Scalar t) const {
+    std::array<Scalar, dim>
+    finite_difference_velocity(std::array<Scalar, dim> pos, Scalar t, Scalar delta = 1e-6) const
+    {
         // Using finite difference to calculate the velocity
-        constexpr Scalar delta = 1e-6;
         auto value_prev = transform(pos, t - delta);
         auto value_next = transform(pos, t + delta);
         std::array<Scalar, dim> velocity;
@@ -90,7 +91,9 @@ class Transform {
      * @return std::array<std::array<Scalar, dim>, dim> The Jacobian matrix
      */
     std::array<std::array<Scalar, dim>, dim> finite_difference_Jacobian(
-        std::array<Scalar, dim> pos, Scalar t) const {
+        std::array<Scalar, dim> pos,
+        Scalar t) const
+    {
         constexpr Scalar eps = 1e-6;
         std::array<std::array<Scalar, dim>, dim> J{};
 
@@ -116,4 +119,4 @@ class Transform {
     }
 };
 
-}  // namespace stf
+} // namespace stf
