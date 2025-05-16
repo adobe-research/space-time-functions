@@ -94,7 +94,7 @@ inline Mat3 rotation_matrix(const Vec3& from, const Vec3& to)
 
         Mat3 K = skew(axis);
         Mat3 KK = multiply(K, K);
-        return add(identityMatrix(), scale(K, 2.0)); // 180° rotation
+        return add(identityMatrix(), scale(KK, 2.0)); // 180° rotation
     } else {
         Vec3 axis = normalize(cross(v1, v2));
         Scalar s = std::sqrt(1.0 - c * c);
