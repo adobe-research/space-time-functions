@@ -5,7 +5,6 @@
 #include <stf/transforms/transform.h>
 
 #include <array>
-#include <iostream>
 #include <stdexcept>
 #include <tuple>
 #include <vector>
@@ -82,14 +81,15 @@ public:
         size_t num_beziers = (m_points.size() - 1) / 3;
         auto [segment, alpha] = find_bezier(t);
 
-        auto frame = get_frame(segment, alpha);
-        auto frame_derivative = get_frame_derivative(segment, alpha);
-
         std::span<const std::array<Scalar, dim>, 4> control_points(
             m_points.data() + segment * 3,
             4);
         auto bezier_point = bezier(control_points, alpha);
         auto bezier_velocity = bezier_derivative(control_points, alpha);
+        auto bezier_acceleration = bezier_second_derivative(control_points, alpha);
+
+        auto frame = get_frame(segment, alpha);
+        auto frame_derivative = get_frame_derivative(frame, bezier_velocity, bezier_acceleration);
 
         auto p = pos;
         for (int i = 0; i < dim; ++i) {
@@ -177,19 +177,17 @@ private:
     /**
      * @brief Computes the derivative of the Bishop frame.
      *
-     * @param segment The segment index
-     * @param alpha The local parameter within the segment [0,1]
+     * @param frame The Bishop frame matrix
+     * @param bezier_velocity The velocity of the Bezier curve
+     * @param bezier_acceleration The acceleration of the Bezier curve
+     *
      * @return The derivative of the Bishop frame matrix
      */
-    std::array<std::array<Scalar, dim>, dim> get_frame_derivative(size_t segment, Scalar alpha)
-        const
+    std::array<std::array<Scalar, dim>, dim> get_frame_derivative(
+        const std::array<std::array<Scalar, dim>, dim>& frame,
+        const std::array<Scalar, dim>& bezier_velocity,
+        const std::array<Scalar, dim>& bezier_acceleration) const
     {
-        auto frame = get_frame(segment, alpha);
-        std::span<const std::array<Scalar, dim>, 4> control_points(
-            m_points.data() + segment * 3,
-            4);
-        auto bezier_velocity = bezier_derivative(control_points, alpha);
-        auto bezier_acceleration = bezier_second_derivative(control_points, alpha);
         auto bezier_speed = norm(bezier_velocity);
 
         if (bezier_speed < 1e-10) {
