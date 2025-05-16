@@ -16,8 +16,9 @@ namespace stf {
  * @tparam dim The spatial dimension of the function
  */
 template <int dim>
-class SpaceTimeFunction {
-   public:
+class SpaceTimeFunction
+{
+public:
     virtual ~SpaceTimeFunction() = default;
 
     /**
@@ -36,8 +37,7 @@ class SpaceTimeFunction {
      * @param t The time value
      * @return Scalar The time derivative at the given position and time
      */
-    virtual Scalar time_derivative(std::array<Scalar, dim> pos,
-                                   Scalar t) const = 0;
+    virtual Scalar time_derivative(std::array<Scalar, dim> pos, Scalar t) const = 0;
 
     /**
      * @brief Compute the gradient of the function with respect to both space
@@ -51,8 +51,7 @@ class SpaceTimeFunction {
      * @param t The time value
      * @return std::array<Scalar, dim + 1> The gradient vector
      */
-    virtual std::array<Scalar, dim + 1> gradient(std::array<Scalar, dim> pos,
-                                                 Scalar t) const = 0;
+    virtual std::array<Scalar, dim + 1> gradient(std::array<Scalar, dim> pos, Scalar t) const = 0;
 };
 
-}  // namespace stf
+} // namespace stf
