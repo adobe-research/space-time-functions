@@ -16,8 +16,12 @@ namespace stf {
  * @tparam dim The dimension of the space (2 for 2D, 3 for 3D)
  */
 template <int dim>
-class ImplicitFunction {
-   public:
+class ImplicitFunction
+{
+public:
+    virtual ~ImplicitFunction() = default;
+
+public:
     /**
      * @brief Evaluates the implicit function at a given position.
      *
@@ -34,8 +38,30 @@ class ImplicitFunction {
      * @param pos The position to evaluate at
      * @return std::array<Scalar, dim> The normalized gradient vector
      */
-    virtual std::array<Scalar, dim> gradient(
-        std::array<Scalar, dim> pos) const = 0;
+    virtual std::array<Scalar, dim> gradient(std::array<Scalar, dim> pos) const = 0;
+
+public:
+    /**
+     * @brief Computes the finite difference approximation of the gradient at a
+     * given position. This is mostly used for debugging purposes.
+     *
+     * @param pos The position to evaluate at
+     * @return std::array<Scalar, dim> The finite difference gradient vector
+     */
+    std::array<Scalar, dim> finite_difference_gradient(std::array<Scalar, dim> pos) const
+    {
+        constexpr Scalar delta = 1e-6;
+        std::array<Scalar, dim> grad{};
+        for (int i = 0; i < dim; ++i) {
+            std::array<Scalar, dim> pos_plus = pos;
+            std::array<Scalar, dim> pos_minus = pos;
+            pos_plus[i] += delta;
+            pos_minus[i] -= delta;
+
+            grad[i] = (value(pos_plus) - value(pos_minus)) / (2 * delta);
+        }
+        return grad;
+    }
 };
 
-}  // namespace stf
+} // namespace stf

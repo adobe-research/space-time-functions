@@ -5,6 +5,15 @@
 
 namespace stf {
 
+/**
+ * @brief Implicit function representing a ball (circle in 2D, sphere in 3D).
+ *
+ * This class implements an implicit function for a ball in N-dimensional space.
+ * The function returns the signed distance to the surface of the ball, with
+ * positive values outside the ball and negative values inside.
+ *
+ * @tparam dim The dimension of the space (2 for 2D, 3 for 3D)
+ */
 template <int dim>
 class ImplicitBall : public ImplicitFunction<dim>
 {
@@ -20,6 +29,16 @@ public:
         , m_center(center)
     {}
 
+    /**
+     * @brief Evaluates the implicit function at a given position.
+     *
+     * Computes the signed distance to the surface of the ball. The function
+     * returns positive values outside the ball, negative values inside, and
+     * zero on the surface.
+     *
+     * @param pos The position to evaluate at
+     * @return Scalar The signed distance to the surface
+     */
     Scalar value(std::array<Scalar, dim> pos) const override
     {
         if constexpr (dim == 2) {
@@ -38,6 +57,16 @@ public:
         }
     }
 
+    /**
+     * @brief Computes the gradient of the implicit function at a given position.
+     *
+     * The gradient is a unit vector pointing outward from the surface of the
+     * ball. For points on the surface, it is the normal vector. For points
+     * inside or outside, it points toward or away from the center.
+     *
+     * @param pos The position to evaluate at
+     * @return std::array<Scalar, dim> The normalized gradient vector
+     */
     std::array<Scalar, dim> gradient(std::array<Scalar, dim> pos) const override
     {
         if constexpr (dim == 2) {
@@ -64,8 +93,8 @@ public:
     }
 
 private:
-    Scalar m_radius; ///< The radius of the circle
-    std::array<Scalar, dim> m_center; ///< The center point of the circle
+    Scalar m_radius; ///< The radius of the ball
+    std::array<Scalar, dim> m_center; ///< The center point of the ball
 };
 
 using ImplicitCircle = ImplicitBall<2>; ///< 2D implicit ball (circle)
