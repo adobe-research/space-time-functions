@@ -52,6 +52,37 @@ public:
      * @return std::array<Scalar, dim + 1> The gradient vector
      */
     virtual std::array<Scalar, dim + 1> gradient(std::array<Scalar, dim> pos, Scalar t) const = 0;
+
+public:
+    /**
+     * @brief Compute the gradient using finite differences
+     *
+     * This method computes the gradient of the function using finite
+     * differences. It is useful for debugging and testing purposes.
+     *
+     * @param pos The spatial position as an array of coordinates
+     * @param t The time value
+     * @return std::array<Scalar, dim + 1> The gradient vector
+     */
+    std::array<Scalar, dim + 1> finite_difference_gradient(std::array<Scalar, dim> pos, Scalar t)
+        const
+    {
+        constexpr Scalar delta = 1e-6;
+
+        std::array<Scalar, dim + 1> grad;
+        for (int i = 0; i < dim; ++i) {
+            std::array<Scalar, dim> pos_plus = pos;
+            std::array<Scalar, dim> pos_minus = pos;
+            pos_plus[i] += delta;
+            pos_minus[i] -= delta;
+            grad[i] = (value(pos_plus, t) - value(pos_minus, t)) / (2 * delta);
+        }
+
+        Scalar time_plus = value(pos, t + delta);
+        Scalar time_minus = value(pos, t - delta);
+        grad[dim] = (time_plus - time_minus) / (2 * delta);
+        return grad;
+    }
 };
 
 } // namespace stf

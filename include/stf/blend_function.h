@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stf/common.h>
+#include <stf/space_time_function.h>
 
 #include <array>
 
@@ -51,7 +52,11 @@ public:
      */
     Scalar time_derivative(std::array<Scalar, dim> pos, Scalar t) const override
     {
-        return m_f1.time_derivative(pos, t) * (1 - t) + m_f2.time_derivative(pos, t) * t;
+        // The time derivative of the blended function is computed using the product rule:
+        // d/dt [f1(pos,t) * (1-t) + f2(pos,t) * t] =
+        //     f1'(pos,t) * (1-t) + f2'(pos,t) * t - f1(pos,t) + f2(pos,t)
+        return m_f1.time_derivative(pos, t) * (1 - t) + m_f2.time_derivative(pos, t) * t -
+               m_f1.value(pos, t) + m_f2.value(pos, t);
     }
 
     /**
@@ -69,7 +74,7 @@ public:
         for (int i = 0; i < dim; ++i) {
             grad_f1[i] = grad_f1[i] * (1 - t) + grad_f2[i] * t;
         }
-        grad_f1[dim] = grad_f1[dim] * (1 - t) + grad_f2[dim] * t;
+        grad_f1[dim] = time_derivative(pos, t);
 
         return grad_f1;
     }
