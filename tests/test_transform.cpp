@@ -267,4 +267,34 @@ TEST_CASE("transform", "[stf]")
             check_jacobian(transform, {0, 1, 0}, 1);
         }
     }
+
+    SECTION("polybezier from samples")
+    {
+        std::vector<std::array<stf::Scalar, 3>> samples = {
+            {0, 0, 0},
+            {1, 0, 0},
+            {1, 1, 0},
+            {0, 1, 0}};
+        auto transform = stf::PolyBezier<3>::from_samples(samples);
+
+        SECTION("[0, 0, 0] at t=0")
+        {
+            auto p0 = transform.transform({0, 0, 0}, 0);
+            REQUIRE_THAT(p0[0], Catch::Matchers::WithinAbs(0, 1e-6));
+            REQUIRE_THAT(p0[1], Catch::Matchers::WithinAbs(0, 1e-6));
+            REQUIRE_THAT(p0[2], Catch::Matchers::WithinAbs(0, 1e-6));
+            check_velocity(transform, {0, 0, 0}, 0);
+            check_jacobian(transform, {0, 0, 0}, 0);
+        }
+
+        SECTION("[0, 0, 0] at t=1")
+        {
+            auto p0 = transform.transform({0, 0, 0}, 1);
+            REQUIRE_THAT(p0[0], Catch::Matchers::WithinAbs(0, 1e-6));
+            REQUIRE_THAT(p0[1], Catch::Matchers::WithinAbs(1, 1e-6));
+            REQUIRE_THAT(p0[2], Catch::Matchers::WithinAbs(0, 1e-6));
+            check_velocity(transform, {0, 0, 0}, 1, 1e-3, 1e-3);
+            check_jacobian(transform, {0, 0, 0}, 1);
+        }
+    }
 }

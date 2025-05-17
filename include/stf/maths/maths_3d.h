@@ -57,6 +57,16 @@ inline Mat3 add(const Mat3& A, const Mat3& B)
     return result;
 }
 
+inline Vec3 add(const Vec3& A, const Vec3& B)
+{
+    return {A[0] + B[0], A[1] + B[1], A[2] + B[2]};
+}
+
+inline Vec3 subtract(const Vec3& A, const Vec3& B)
+{
+    return {A[0] - B[0], A[1] - B[1], A[2] - B[2]};
+}
+
 // Scalar * matrix
 inline Mat3 scale(const Mat3& A, Scalar s)
 {
@@ -64,6 +74,11 @@ inline Mat3 scale(const Mat3& A, Scalar s)
     for (int i = 0; i < 3; ++i)
         for (int j = 0; j < 3; ++j) result[i][j] = A[i][j] * s;
     return result;
+}
+
+inline Vec3 scale(const Vec3& A, Scalar s)
+{
+    return {A[0] * s, A[1] * s, A[2] * s};
 }
 
 // Matrix multiplication: A * B

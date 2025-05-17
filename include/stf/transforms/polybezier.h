@@ -26,6 +26,47 @@ class PolyBezier : public Transform<dim>
 {
 public:
     /**
+     * @brief Constructs a PolyBezier from a set of sample points.
+     *
+     * This method generates a piecewise cubic Bezier curve that passes through the given
+     * sample points. Tangents are computed automatically to ensure smooth transitions
+     * between curve segments.
+     *
+     * @param samples A vector of sample points, where each point is represented as an
+     *                array of Scalars in n-dimensional space.
+     * @return A PolyBezier object representing the constructed curve.
+     * @throws std::runtime_error If fewer than 3 sample points are provided.
+     */
+    static PolyBezier<dim> from_samples(std::vector<std::array<Scalar, dim>> samples)
+    {
+        const size_t n = samples.size();
+        if (n < 3) {
+            throw std::runtime_error(
+                "A minimum of 3 samples is required for PolyBezier construction.");
+        }
+
+        std::vector<std::array<Scalar, dim>> tangents(n);
+        for (size_t i = 1; i < n - 1; ++i) {
+            tangents[i] = scale(subtract(samples[i + 1], samples[i - 1]), 0.5);
+        }
+        tangents[0] = subtract(samples[1], samples[0]);
+        tangents[n - 1] = subtract(samples[n - 1], samples[n - 2]);
+
+        std::vector<std::array<Scalar, dim>> points;
+        points.reserve((n - 1) * 3 + 1);
+        for (size_t i = 0; i < n - 1; i++) {
+            points.push_back(samples[i]);
+            points.push_back(add(samples[i], scale(tangents[i], 1 / 3.0)));
+            points.push_back(add(samples[i + 1], scale(tangents[i + 1], -1 / 3.0)));
+        }
+        points.push_back(samples[n - 1]);
+
+        PolyBezier bezier(points);
+        return bezier;
+    }
+
+public:
+    /**
      * @brief Constructs a PolyBezier curve from a set of control points.
      *
      * @param points Vector of control points. Must have at least 4 points and follow the pattern (n

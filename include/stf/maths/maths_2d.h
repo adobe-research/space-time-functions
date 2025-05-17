@@ -42,6 +42,21 @@ inline Mat2 multiply(const Mat2& A, const Mat2& B)
     return result;
 }
 
+inline Vec2 add(const Vec2& A, const Vec2& B)
+{
+    return {A[0] + B[0], A[1] + B[1]};
+}
+
+inline Vec2 subtract(const Vec2& A, const Vec2& B)
+{
+    return {A[0] - B[0], A[1] - B[1]};
+}
+
+inline Vec2 scale(const Vec2& A, Scalar s)
+{
+    return {A[0] * s, A[1] * s};
+}
+
 // Rotation matrix from one vector to another
 inline Mat2 rotation_matrix(const Vec2& from, const Vec2& to)
 {
