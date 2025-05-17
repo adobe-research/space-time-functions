@@ -28,12 +28,28 @@ TEST_CASE("primitive", "[stf]")
         check_gradient(ball, {1, 0, 0});
     }
 
+    SECTION("quadratic ball") {
+        stf::ImplicitBall<3> ball(1.0, {0, 0, 0}, 2);
+        REQUIRE_THAT(ball.value({0, 0, 0}), Catch::Matchers::WithinAbs(-1, 1e-6));
+        REQUIRE_THAT(ball.value({1, 0, 0}), Catch::Matchers::WithinAbs(0, 1e-6));
+        check_gradient(ball, {0, 0, 0});
+        check_gradient(ball, {1, 0, 0});
+    }
+
     SECTION("ball not at origin") {
         stf::ImplicitBall<3> ball(1.0, {1, 1, 1});
         REQUIRE_THAT(ball.value({0, 0, 0}), Catch::Matchers::WithinAbs(std::sqrt(3) - 1, 1e-6));
         REQUIRE_THAT(ball.value({1, 0, 0}), Catch::Matchers::WithinAbs(std::sqrt(2) - 1, 1e-6));
         check_gradient(ball, {0, 0, 0});
         check_gradient(ball, {1, 0, 0});
+    }
+
+    SECTION("quadratic 2D ball not at origin") {
+        stf::ImplicitBall<2> ball(1.0, {1, 2}, 2);
+        REQUIRE_THAT(ball.value({0, 0}), Catch::Matchers::WithinAbs(4, 1e-6));
+        REQUIRE_THAT(ball.value({1, 0}), Catch::Matchers::WithinAbs(3, 1e-6));
+        check_gradient(ball, {0, 0});
+        check_gradient(ball, {1, 0});
     }
 
     SECTION("union") {

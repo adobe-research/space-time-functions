@@ -3,6 +3,10 @@
 #include <stf/common.h>
 #include <stf/primitives/implicit_function.h>
 
+#include <array>
+#include <cmath>
+#include <stdexcept>
+
 namespace stf {
 
 /**
@@ -23,11 +27,16 @@ public:
      *
      * @param radius The radius of the ball
      * @param center The center point of the ball
+     * @param degree The degree of the distance function (default is 1)
      */
-    ImplicitBall(Scalar radius, std::array<Scalar, dim> center)
+    ImplicitBall(Scalar radius, std::array<Scalar, dim> center, int degree = 1)
         : m_radius(radius)
         , m_center(center)
-    {}
+        , m_degree(degree)
+    {
+        if (degree < 1)
+            throw std::invalid_argument("Degree must be at least 1.");
+    }
 
     /**
      * @brief Evaluates the implicit function at a given position.
@@ -42,16 +51,20 @@ public:
     Scalar value(std::array<Scalar, dim> pos) const override
     {
         if constexpr (dim == 2) {
-            return std::sqrt(
-                       (pos[0] - m_center[0]) * (pos[0] - m_center[0]) +
-                       (pos[1] - m_center[1]) * (pos[1] - m_center[1])) -
-                   m_radius;
+            return std::pow(
+                       std::sqrt(
+                           (pos[0] - m_center[0]) * (pos[0] - m_center[0]) +
+                           (pos[1] - m_center[1]) * (pos[1] - m_center[1])),
+                       m_degree) -
+                   std::pow(m_radius, m_degree);
         } else if constexpr (dim == 3) {
-            return std::sqrt(
-                       (pos[0] - m_center[0]) * (pos[0] - m_center[0]) +
-                       (pos[1] - m_center[1]) * (pos[1] - m_center[1]) +
-                       (pos[2] - m_center[2]) * (pos[2] - m_center[2])) -
-                   m_radius;
+            return std::pow(
+                       std::sqrt(
+                           (pos[0] - m_center[0]) * (pos[0] - m_center[0]) +
+                           (pos[1] - m_center[1]) * (pos[1] - m_center[1]) +
+                           (pos[2] - m_center[2]) * (pos[2] - m_center[2])),
+                       m_degree) -
+                   std::pow(m_radius, m_degree);
         } else {
             throw std::invalid_argument("ImplicitBall is only defined for 2D and 3D.");
         }
@@ -73,20 +86,22 @@ public:
             Scalar r = std::sqrt(
                 (pos[0] - m_center[0]) * (pos[0] - m_center[0]) +
                 (pos[1] - m_center[1]) * (pos[1] - m_center[1]));
+            Scalar d = m_degree * std::pow(r, m_degree - 1);
             if (r == 0) return {0, 0};
 
-            return {(pos[0] - m_center[0]) / r, (pos[1] - m_center[1]) / r};
+            return {(pos[0] - m_center[0]) * d / r, (pos[1] - m_center[1]) * d / r};
         } else if constexpr (dim == 3) {
             Scalar r = std::sqrt(
                 (pos[0] - m_center[0]) * (pos[0] - m_center[0]) +
                 (pos[1] - m_center[1]) * (pos[1] - m_center[1]) +
                 (pos[2] - m_center[2]) * (pos[2] - m_center[2]));
+            Scalar d = m_degree * std::pow(r, m_degree - 1);
             if (r == 0) return {0, 0, 0};
 
             return {
-                (pos[0] - m_center[0]) / r,
-                (pos[1] - m_center[1]) / r,
-                (pos[2] - m_center[2]) / r};
+                (pos[0] - m_center[0]) * d / r,
+                (pos[1] - m_center[1]) * d / r,
+                (pos[2] - m_center[2]) * d / r};
         } else {
             throw std::invalid_argument("ImplicitBall is only defined for 2D and 3D.");
         }
@@ -95,6 +110,7 @@ public:
 private:
     Scalar m_radius; ///< The radius of the ball
     std::array<Scalar, dim> m_center; ///< The center point of the ball
+    int m_degree; ///< The degree of the distance function
 };
 
 using ImplicitCircle = ImplicitBall<2>; ///< 2D implicit ball (circle)
