@@ -4,7 +4,7 @@
 #include <stf/space_time_function.h>
 
 #include <array>
-#include <iostream>
+#include <stdexcept>
 
 namespace stf {
 
@@ -89,17 +89,19 @@ public:
             Scalar k = m_smooth_distance * 4.0;
             Scalar diff = a - b;
             Scalar abs_diff = std::abs(diff);
-            Scalar h = std::max(k - abs_diff, Scalar(0)) / k;
+            bool a_is_smaller = (a < b);
 
             if (abs_diff >= k) {
-                // No smoothing active
+                // Outside smoothing zone
                 return (a < b) ? da : db;
             } else {
-                // Derivative of h^2 * k * 1/4
-                Scalar dh_dt = (diff > 0 ? 1 : -1) * (da - db) / k;
-                Scalar dterm_dt = -2 * h * dh_dt * (k / 4.0);
+                // Inside smoothing zone
+                // Compute dh/dpos = -(1/k) * sign(a - b) * (grad_a - grad_b)
+                Scalar h = std::max(k - abs_diff, Scalar(0)) / k;
+                Scalar sign = (a_is_smaller) ? -1.0 : 1.0;
+                Scalar coeff = - h * sign / 2;
 
-                return (a < b ? da : db) + dterm_dt;
+                return (a_is_smaller ? da : db) - coeff * (da - db);
             }
         } else {
             if (a < b)
@@ -134,23 +136,23 @@ public:
             Scalar k = m_smooth_distance * 4.0;
             Scalar diff = a - b;
             Scalar abs_diff = std::abs(diff);
-            Scalar h = std::max(k - abs_diff, Scalar(0)) / k;
+            bool a_is_smaller = (a < b);
 
             if (abs_diff >= k) {
                 // Outside smoothing zone
-                return (a < b) ? grad_a : grad_b;
+                return (a_is_smaller) ? grad_a : grad_b;
             } else {
                 // Inside smoothing zone
                 // Compute dh/dpos = -(1/k) * sign(a - b) * (grad_a - grad_b)
-                Scalar sign = (diff > 0) ? 1.0 : -1.0;
-                Scalar coeff = -2.0 * h * (k / 4.0) * (1.0 / k) * sign;
+                Scalar h = std::max(k - abs_diff, Scalar(0)) / k;
+                Scalar sign = (a_is_smaller) ? -1.0 : 1.0;
+                Scalar coeff = - h * sign / 2;
 
                 std::array<Scalar, dim + 1> grad_result;
-                for (int i = 0; i < dim; ++i) {
-                    Scalar dmin = (a < b) ? grad_a[i] : grad_b[i];
-                    grad_result[i] = dmin + coeff * (grad_a[i] - grad_b[i]);
+                for (int i = 0; i <= dim; ++i) {
+                    Scalar dmin = (a_is_smaller) ? grad_a[i] : grad_b[i];
+                    grad_result[i] = dmin - coeff * (grad_a[i] - grad_b[i]);
                 }
-                grad_result[dim] = time_derivative(pos, t);
                 return grad_result;
             }
         } else {
