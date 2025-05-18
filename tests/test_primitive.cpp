@@ -75,6 +75,7 @@ TEST_CASE("primitive", "[stf]")
         check_gradient(shape, {0.0, 0, 0});
         check_gradient(shape, {0.5, 0, 0});
         check_gradient(shape, {-0.5, 0, 0});
+        check_gradient(shape, {1, 1, 1});
     }
 
     SECTION("capsule") {

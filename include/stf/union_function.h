@@ -97,7 +97,7 @@ public:
             } else {
                 // Inside smoothing zone
                 // Compute dh/dpos = -(1/k) * sign(a - b) * (grad_a - grad_b)
-                Scalar h = std::max(k - abs_diff, Scalar(0)) / k;
+                Scalar h = (k - abs_diff) / k;
                 Scalar sign = (a_is_smaller) ? -1.0 : 1.0;
                 Scalar coeff = - h * sign / 2;
 
@@ -144,7 +144,7 @@ public:
             } else {
                 // Inside smoothing zone
                 // Compute dh/dpos = -(1/k) * sign(a - b) * (grad_a - grad_b)
-                Scalar h = std::max(k - abs_diff, Scalar(0)) / k;
+                Scalar h = (k - abs_diff) / k;
                 Scalar sign = (a_is_smaller) ? -1.0 : 1.0;
                 Scalar coeff = - h * sign / 2;
 

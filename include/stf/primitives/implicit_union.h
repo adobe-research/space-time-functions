@@ -79,6 +79,7 @@ public:
             Scalar k = m_smooth_distance * 4.0;
             Scalar diff = a - b;
             Scalar abs_diff = std::abs(diff);
+            bool a_is_smaller = (a < b);
 
             if (abs_diff >= k) {
                 // No blending region; just take min
@@ -86,30 +87,18 @@ public:
             }
 
             Scalar h = (k - abs_diff) / k;
+            Scalar sign = (a_is_smaller) ? -1.0 : 1.0;
+            Scalar coeff = - h * sign / 2;
+
             Scalar h2k = h * h * (k * 0.25); // h^2 * k/4
 
-            // ∂h/∂a = -sign(a - b) / k if |a - b| < k
-            Scalar sign = (diff > 0) ? 1.0 : ((diff < 0) ? -1.0 : 0.0);
-            Scalar dh_da = -sign / k;
-            Scalar dh_db = sign / k;
-
-            // ∂value/∂a = ∂min(a,b)/∂a - d(h^2 * k/4)/da
-            Scalar dmin_da = (a < b) ? 1.0 : 0.0;
-            Scalar dmin_db = (b < a) ? 1.0 : 0.0;
-
-            // ∂(h^2 * k/4)/∂a = 2 * h * dh_da * (k/4)
-            Scalar d_blend_da = 2.0 * h * dh_da * (k * 0.25);
-            Scalar d_blend_db = 2.0 * h * dh_db * (k * 0.25);
-
-            // Total gradients
             std::array<Scalar, dim> grad;
             for (int i = 0; i < dim; ++i) {
-                grad[i] = dmin_da * grad_a[i] + dmin_db * grad_b[i] - d_blend_da * grad_a[i] -
-                          d_blend_db * grad_b[i];
+                Scalar dmin = (a_is_smaller) ? grad_a[i] : grad_b[i];
+                grad[i] = dmin - coeff * (grad_a[i] - grad_b[i]);
             }
 
             return grad;
-
         } else {
             // Hard union: take gradient of the smaller
             return (a < b) ? grad_a : grad_b;
