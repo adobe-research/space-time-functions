@@ -297,4 +297,50 @@ TEST_CASE("transform", "[stf]")
             check_jacobian(transform, {0, 0, 0}, 1);
         }
     }
+
+    SECTION("polybezier translation only")
+    {
+        stf::PolyBezier<3> transform({
+            {0, 0, 1}, // 0
+            {1, 0, 1}, // 1
+            {1, 1, 1}, // 2
+            {0, 1, 1}, // 3
+            {-1, 1, 1}, // 4
+            {-1, 0, 1}, // 5
+            {0, 0, 1} // 6
+        }, false);
+
+        SECTION("[0, 0, 0] at t=0") {
+            auto p0 = transform.transform({0, 0, 0}, 0);
+            REQUIRE_THAT(p0[0], Catch::Matchers::WithinAbs(0, 1e-6));
+            REQUIRE_THAT(p0[1], Catch::Matchers::WithinAbs(0, 1e-6));
+            REQUIRE_THAT(p0[2], Catch::Matchers::WithinAbs(-1, 1e-6));
+            check_velocity(transform, {0, 0, 0}, 0);
+            check_jacobian(transform, {0, 0, 0}, 0);
+        }
+        SECTION("[0, 0, 0] at t=0.25") {
+            auto p0 = transform.transform({0, 0, 0}, 0.25);
+            REQUIRE_THAT(p0[0], Catch::Matchers::WithinAbs(-0.75, 1e-6));
+            REQUIRE_THAT(p0[1], Catch::Matchers::WithinAbs(-0.5, 1e-6));
+            REQUIRE_THAT(p0[2], Catch::Matchers::WithinAbs(-1, 1e-6));
+            check_velocity(transform, {0, 0, 0}, 0.25);
+            check_jacobian(transform, {0, 0, 0}, 0.25);
+        }
+        SECTION("[0, 0, 0] at t=0.5") {
+            auto p0 = transform.transform({0, 0, 0}, 0.5);
+            REQUIRE_THAT(p0[0], Catch::Matchers::WithinAbs(0, 1e-6));
+            REQUIRE_THAT(p0[1], Catch::Matchers::WithinAbs(-1, 1e-6));
+            REQUIRE_THAT(p0[2], Catch::Matchers::WithinAbs(-1, 1e-6));
+            check_velocity(transform, {0, 0, 0}, 0.5, 1e-6, 1e-3);
+            check_jacobian(transform, {0, 0, 0}, 0.5);
+        }
+        SECTION("[0, 0, 0] at t=0.75") {
+            auto p0 = transform.transform({0, 0, 0}, 0.75);
+            REQUIRE_THAT(p0[0], Catch::Matchers::WithinAbs(0.75, 1e-6));
+            REQUIRE_THAT(p0[1], Catch::Matchers::WithinAbs(-0.5, 1e-6));
+            REQUIRE_THAT(p0[2], Catch::Matchers::WithinAbs(-1, 1e-6));
+            check_velocity(transform, {0, 0, 0}, 0.75, 1e-6, 1e-3);
+            check_jacobian(transform, {0, 0, 0}, 0.75);
+        }
+    }
 }

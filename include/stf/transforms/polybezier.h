@@ -32,12 +32,16 @@ public:
      * sample points. Tangents are computed automatically to ensure smooth transitions
      * between curve segments.
      *
-     * @param samples A vector of sample points, where each point is represented as an
-     *                array of Scalars in n-dimensional space.
+     * @param samples        A vector of sample points, where each point is represented as an
+     *                       array of Scalars in n-dimensional space.
+     * @param follow_tangent If true, the transform will add rotation so that the Z-axis of the
+     *                       input coordinate system follows the tangent of the curve.
      * @return A PolyBezier object representing the constructed curve.
      * @throws std::runtime_error If fewer than 3 sample points are provided.
      */
-    static PolyBezier<dim> from_samples(std::vector<std::array<Scalar, dim>> samples)
+    static PolyBezier<dim> from_samples(
+        std::vector<std::array<Scalar, dim>> samples,
+        bool follow_tangent = true)
     {
         const size_t n = samples.size();
         if (n < 3) {
@@ -61,7 +65,7 @@ public:
         }
         points.push_back(samples[n - 1]);
 
-        PolyBezier bezier(points);
+        PolyBezier bezier(points, follow_tangent);
         return bezier;
     }
 
@@ -71,10 +75,14 @@ public:
      *
      * @param points Vector of control points. Must have at least 4 points and follow the pattern (n
      * * 3) + 1
+     * @param follow_tangent If true, the transform will add rotation so that the Z-axis of the
+     * input coordinate system follows the tangent of the curve.
+     *
      * @throws std::runtime_error if points.size() < 4 or if (points.size() - 1) % 3 != 0
      */
-    explicit PolyBezier(std::vector<std::array<Scalar, dim>> points)
+    explicit PolyBezier(std::vector<std::array<Scalar, dim>> points, bool follow_tangent = true)
         : m_points(std::move(points))
+        , m_follow_tangent(follow_tangent)
     {
         if (m_points.size() < 4) {
             throw std::runtime_error("PolyBezier must consist of at least 4 points.");
@@ -94,20 +102,36 @@ public:
      */
     std::array<Scalar, dim> transform(std::array<Scalar, dim> pos, Scalar t) const override
     {
-        auto [segment, alpha] = find_bezier(t);
+        if (m_follow_tangent) {
+            auto [segment, alpha] = find_bezier(t);
 
-        std::span<const std::array<Scalar, dim>, 4> control_points{
-            m_points.data() + segment * 3,
-            4};
+            std::span<const std::array<Scalar, dim>, 4> control_points{
+                m_points.data() + segment * 3,
+                4};
 
-        auto bezier_point = bezier(control_points, alpha);
-        auto bezier_frame = get_frame(segment, alpha);
+            auto bezier_point = bezier(control_points, alpha);
+            auto bezier_frame = get_frame(segment, alpha);
 
-        for (int i = 0; i < dim; i++) {
-            pos[i] -= bezier_point[i];
+            for (int i = 0; i < dim; i++) {
+                pos[i] -= bezier_point[i];
+            }
+            pos = apply_matrix(transpose(bezier_frame), pos);
+            return pos;
+        } else {
+            auto [segment, alpha] = find_bezier(t);
+
+            std::span<const std::array<Scalar, dim>, 4> control_points{
+                m_points.data() + segment * 3,
+                4};
+
+            auto bezier_point = bezier(control_points, alpha);
+            if constexpr (dim == 3) {
+                return {pos[0]-bezier_point[0], pos[1]-bezier_point[1], pos[2]-bezier_point[2]};
+            } else {
+                static_assert(dim == 2, "PolyBezier only support 2D and 3D.");
+                return {pos[0]-bezier_point[0], pos[1]-bezier_point[1]};
+            }
         }
-        pos = apply_matrix(transpose(bezier_frame), pos);
-        return pos;
     }
 
     /**
@@ -119,35 +143,56 @@ public:
      */
     std::array<Scalar, dim> velocity(std::array<Scalar, dim> pos, Scalar t) const override
     {
-        size_t num_beziers = (m_points.size() - 1) / 3;
-        auto [segment, alpha] = find_bezier(t);
+        if (m_follow_tangent) {
+            size_t num_beziers = (m_points.size() - 1) / 3;
+            auto [segment, alpha] = find_bezier(t);
 
-        std::span<const std::array<Scalar, dim>, 4> control_points(
-            m_points.data() + segment * 3,
-            4);
-        auto bezier_point = bezier(control_points, alpha);
-        auto bezier_velocity = bezier_derivative(control_points, alpha);
-        auto bezier_acceleration = bezier_second_derivative(control_points, alpha);
+            std::span<const std::array<Scalar, dim>, 4> control_points(
+                m_points.data() + segment * 3,
+                4);
+            auto bezier_point = bezier(control_points, alpha);
+            auto bezier_velocity = bezier_derivative(control_points, alpha);
+            auto bezier_acceleration = bezier_second_derivative(control_points, alpha);
 
-        auto frame = get_frame(segment, alpha);
-        auto frame_derivative = get_frame_derivative(frame, bezier_velocity, bezier_acceleration);
+            auto frame = get_frame(segment, alpha);
+            auto frame_derivative =
+                get_frame_derivative(frame, bezier_velocity, bezier_acceleration);
 
-        auto p = pos;
-        for (int i = 0; i < dim; ++i) {
-            p[i] -= bezier_point[i];
+            auto p = pos;
+            for (int i = 0; i < dim; ++i) {
+                p[i] -= bezier_point[i];
+            }
+            p = apply_matrix(transpose(frame), p);
+            p = apply_matrix(frame_derivative, p);
+            p = apply_matrix(transpose(frame), p);
+
+            auto v = apply_matrix(transpose(frame), bezier_velocity);
+
+            std::array<Scalar, dim> result;
+            for (int i = 0; i < dim; i++) {
+                result[i] = (-p[i] - v[i]) * num_beziers;
+            }
+
+            return result;
+        } else {
+            auto [segment, alpha] = find_bezier(t);
+
+            std::span<const std::array<Scalar, dim>, 4> control_points{
+                m_points.data() + segment * 3,
+                4};
+            size_t num_beziers = (m_points.size() - 1) / 3;
+            auto bezier_velocity = bezier_derivative(control_points, alpha);
+
+            if constexpr (dim == 3) {
+                return {
+                    -bezier_velocity[0] * num_beziers,
+                    -bezier_velocity[1] * num_beziers,
+                    -bezier_velocity[2] * num_beziers};
+            } else {
+                static_assert(dim == 2, "PolyBezier only support 2D and 3D.");
+                return {-bezier_velocity[0] * num_beziers, -bezier_velocity[1] * num_beziers};
+            }
         }
-        p = apply_matrix(transpose(frame), p);
-        p = apply_matrix(frame_derivative, p);
-        p = apply_matrix(transpose(frame), p);
-
-        auto v = apply_matrix(transpose(frame), bezier_velocity);
-
-        std::array<Scalar, dim> result;
-        for (int i = 0; i < dim; i++) {
-            result[i] = (-p[i] - v[i]) * num_beziers;
-        }
-
-        return result;
     }
 
     /**
@@ -161,9 +206,17 @@ public:
         std::array<Scalar, dim> pos,
         Scalar t) const override
     {
-        auto [segment, alpha] = find_bezier(t);
-        auto bezier_frame = get_frame(segment, alpha);
-        return transpose(bezier_frame);
+        if (m_follow_tangent) {
+            auto [segment, alpha] = find_bezier(t);
+            auto bezier_frame = get_frame(segment, alpha);
+            return transpose(bezier_frame);
+        } else {
+            std::array<std::array<Scalar, dim>, dim> jacobian{};
+            for (int i = 0; i < dim; ++i) {
+                jacobian[i][i] = 1;
+            }
+            return jacobian;
+        }
     }
 
 private:
@@ -336,6 +389,7 @@ private:
         m_frames; ///< Bishop frames (One frame per control point)
     constexpr static size_t m_frames_per_bezier =
         4; ///< Number of frames to sample per bezier segment
+    bool m_follow_tangent = true; ///< Whether to follow the tangent of the curve
 };
 
 } // namespace stf
