@@ -90,7 +90,9 @@ public:
         if ((m_points.size() - 1) % 3 != 0) {
             throw std::runtime_error("PolyBezier must consist of a (n * 3) + 1 points.");
         }
-        initialize_bishop_frames();
+        if (m_follow_tangent) {
+            initialize_bishop_frames();
+        }
     }
 
     /**
