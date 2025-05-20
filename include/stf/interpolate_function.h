@@ -4,6 +4,7 @@
 #include <stf/space_time_function.h>
 
 #include <array>
+#include <functional>
 
 namespace stf {
 
@@ -25,10 +26,18 @@ public:
      *
      * @param f1 The first space-time function (used at t=0)
      * @param f2 The second space-time function (used at t=1)
+     * @param interpolation_func The interpolation function (default is linear)
+     * @param interpolation_derivative The derivative of the interpolation function (default is 1)
      */
-    InterpolateFunction(SpaceTimeFunction<dim>& f1, SpaceTimeFunction<dim>& f2)
+    InterpolateFunction(
+        SpaceTimeFunction<dim>& f1,
+        SpaceTimeFunction<dim>& f2,
+        std::function<Scalar(Scalar)> interpolation_func = [](Scalar t) { return t; },
+        std::function<Scalar(Scalar)> interpolation_derivative = [](Scalar t) { return 1; })
         : m_f1(f1)
         , m_f2(f2)
+        , m_interpolation_func(interpolation_func)
+        , m_interpolation_derivative(interpolation_derivative)
     {}
 
     /**
@@ -40,7 +49,8 @@ public:
      */
     Scalar value(std::array<Scalar, dim> pos, Scalar t) const override
     {
-        return m_f1.value(pos, t) * (1 - t) + m_f2.value(pos, t) * t;
+        Scalar s = m_interpolation_func(t);
+        return m_f1.value(pos, t) * (1 - s) + m_f2.value(pos, t) * s;
     }
 
     /**
@@ -52,11 +62,13 @@ public:
      */
     Scalar time_derivative(std::array<Scalar, dim> pos, Scalar t) const override
     {
+        Scalar s = m_interpolation_func(t);
+        Scalar ds_dt = m_interpolation_derivative(t);
         // The time derivative of the interpolated function is computed using the product rule:
-        // d/dt [f1(pos,t) * (1-t) + f2(pos,t) * t] =
-        //     f1'(pos,t) * (1-t) + f2'(pos,t) * t - f1(pos,t) + f2(pos,t)
-        return m_f1.time_derivative(pos, t) * (1 - t) + m_f2.time_derivative(pos, t) * t -
-               m_f1.value(pos, t) + m_f2.value(pos, t);
+        // d/dt [f1(pos,t) * (1-s) + f2(pos,t) * s] =
+        //     f1'(pos,t) * (1-s) + f2'(pos,t) * s - f1(pos,t) ds/dt + f2(pos,t) ds/dt
+        return m_f1.time_derivative(pos, t) * (1 - s) + m_f2.time_derivative(pos, t) * s -
+               m_f1.value(pos, t) * ds_dt + m_f2.value(pos, t) * ds_dt;
     }
 
     /**
@@ -71,8 +83,10 @@ public:
         std::array<Scalar, dim + 1> grad_f1 = m_f1.gradient(pos, t);
         std::array<Scalar, dim + 1> grad_f2 = m_f2.gradient(pos, t);
 
+        Scalar s = m_interpolation_func(t);
+
         for (int i = 0; i < dim; ++i) {
-            grad_f1[i] = grad_f1[i] * (1 - t) + grad_f2[i] * t;
+            grad_f1[i] = grad_f1[i] * (1 - s) + grad_f2[i] * s;
         }
         grad_f1[dim] = time_derivative(pos, t);
 
@@ -82,6 +96,12 @@ public:
 private:
     SpaceTimeFunction<dim>& m_f1; ///< The first function (used at t=0)
     SpaceTimeFunction<dim>& m_f2; ///< The second function (used at t=1)
+
+    ///< The interpolation function
+    std::function<Scalar(Scalar)> m_interpolation_func;
+
+    /// The derivative of the interpolation function
+    std::function<Scalar(Scalar)> m_interpolation_derivative;
 };
 
 } // namespace stf

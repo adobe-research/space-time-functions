@@ -9,11 +9,12 @@ template <int dim>
 void check_gradient(
     const stf::SpaceTimeFunction<dim>& fn,
     const std::array<stf::Scalar, dim>& pos,
-    const stf::Scalar t)
+    const stf::Scalar t,
+    const stf::Scalar delta = 1e-6,
+    const stf::Scalar epsilon = 1e-6)
 {
-    constexpr stf::Scalar epsilon = 1e-6;
     auto grad = fn.gradient(pos, t);
-    auto grad_fd = fn.finite_difference_gradient(pos, t);
+    auto grad_fd = fn.finite_difference_gradient(pos, t, delta);
     auto dt = fn.time_derivative(pos, t);
     for (int i = 0; i < dim + 1; ++i) {
         REQUIRE_THAT(grad[i], Catch::Matchers::WithinAbs(grad_fd[i], epsilon));
@@ -39,6 +40,24 @@ TEST_CASE("interpolate_function", "[stf]")
         check_gradient(op, {0.5, 0.5}, 0.5);
         check_gradient(op, {0.1, 0.75}, 0);
         check_gradient(op, {0.1, 0.75}, 1);
+    }
+
+    SECTION("nonlinear interpolation")
+    {
+        stf::ImplicitBall<2> ball_1(0.25, {0.1, 0.25});
+        stf::ImplicitBall<2> ball_2(0.25, {0.9, 0.25});
+        stf::Translation<2> translate({0, -0.5});
+        stf::SweepFunction<2> sweep_1(ball_1, translate);
+        stf::SweepFunction<2> sweep_2(ball_2, translate);
+        stf::InterpolateFunction<2> op(sweep_1, sweep_2,
+            [](stf::Scalar t) { return std::sin(2 * M_PI * t); },
+            [](stf::Scalar t) { return 2 * M_PI * std::cos(2 * M_PI * t); });
+
+        check_gradient(op, {0.1, 0.25}, 0, 1e-6, 1e-5);
+        check_gradient(op, {0.1, 0.25}, 1, 1e-6, 1e-5);
+        check_gradient(op, {0.5, 0.5}, 0.5, 1e-6, 1e-5);
+        check_gradient(op, {0.1, 0.75}, 0, 1e-6, 1e-5);
+        check_gradient(op, {0.1, 0.75}, 1, 1e-6, 1e-5);
     }
 }
 

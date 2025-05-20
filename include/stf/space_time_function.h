@@ -62,13 +62,12 @@ public:
      *
      * @param pos The spatial position as an array of coordinates
      * @param t The time value
+     * @param delta The finite difference step size (default is 1e-6)
      * @return std::array<Scalar, dim + 1> The gradient vector
      */
-    std::array<Scalar, dim + 1> finite_difference_gradient(std::array<Scalar, dim> pos, Scalar t)
-        const
+    std::array<Scalar, dim + 1>
+    finite_difference_gradient(std::array<Scalar, dim> pos, Scalar t, Scalar delta = 1e-6) const
     {
-        constexpr Scalar delta = 1e-6;
-
         std::array<Scalar, dim + 1> grad;
         for (int i = 0; i < dim; ++i) {
             std::array<Scalar, dim> pos_plus = pos;
