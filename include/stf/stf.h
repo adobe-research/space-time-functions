@@ -7,6 +7,7 @@
 
 #include <stf/explicit_form.h>
 #include <stf/interpolate_function.h>
+#include <stf/offset_function.h>
 #include <stf/space_time_function.h>
 #include <stf/sweep_function.h>
 #include <stf/union_function.h>

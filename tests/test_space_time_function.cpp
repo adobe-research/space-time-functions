@@ -49,7 +49,9 @@ TEST_CASE("interpolate_function", "[stf]")
         stf::Translation<2> translate({0, -0.5});
         stf::SweepFunction<2> sweep_1(ball_1, translate);
         stf::SweepFunction<2> sweep_2(ball_2, translate);
-        stf::InterpolateFunction<2> op(sweep_1, sweep_2,
+        stf::InterpolateFunction<2> op(
+            sweep_1,
+            sweep_2,
             [](stf::Scalar t) { return std::sin(2 * M_PI * t); },
             [](stf::Scalar t) { return 2 * M_PI * std::cos(2 * M_PI * t); });
 
@@ -87,9 +89,9 @@ TEST_CASE("union_function", "[stf]")
         check_gradient(op, {0.51, 0.5}, 1);
 
         // Check gradient on the center plane separating the balls
-        for (size_t i=0; i <= 10; ++i) {
+        for (size_t i = 0; i <= 10; ++i) {
             stf::Scalar y = i * 0.1;
-            for (size_t j=0; j<=10; ++j) {
+            for (size_t j = 0; j <= 10; ++j) {
                 stf::Scalar t = j * 0.1;
                 stf::Scalar dt = op.time_derivative({0.5, y}, t);
                 stf::Scalar dt1 = sweep_1.time_derivative({0.5, y}, t);
@@ -98,5 +100,32 @@ TEST_CASE("union_function", "[stf]")
                 check_gradient(op, {0.5, y}, t);
             }
         }
+    }
+}
+
+TEST_CASE("offset_function", "[stf]")
+{
+    SECTION("ball translation")
+    {
+        stf::ImplicitBall<3> ball(0.1, {0.5, 0.0, 0.0});
+        stf::Translation<3> translate({-0.5, 0.0, 0.0});
+        stf::SweepFunction<3> sweep(ball, translate);
+        stf::OffsetFunction<3> offset(
+            sweep,
+            [](stf::Scalar t) { return t; },
+            [](stf::Scalar t) { return 1.0; });
+
+        REQUIRE_THAT(
+            offset.value({0.0, 0.0, 0.0}, 0),
+            Catch::Matchers::WithinAbs(sweep.value({0.0, 0.0, 0.0}, 0), 1e-6));
+        REQUIRE_THAT(
+            offset.value({0.0, 0.0, 0.0}, 0.5),
+            Catch::Matchers::WithinAbs(sweep.value({0.0, 0.0, 0.0}, 0.5) + 0.5, 1e-6));
+        check_gradient(offset, {0.0, 0.0, 0.0}, 0);
+        check_gradient(offset, {0.0, 0.0, 0.0}, 0.5);
+        check_gradient(offset, {0.0, 0.0, 0.0}, 1.0);
+        check_gradient(offset, {0.0, 0.5, 0.0}, 0);
+        check_gradient(offset, {0.0, 0.5, 0.0}, 0.5);
+        check_gradient(offset, {0.0, 0.5, 0.0}, 1.0);
     }
 }
