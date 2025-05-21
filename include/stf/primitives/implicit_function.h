@@ -46,11 +46,13 @@ public:
      * given position. This is mostly used for debugging purposes.
      *
      * @param pos The position to evaluate at
+     * @param delta The finite difference step size
      * @return std::array<Scalar, dim> The finite difference gradient vector
      */
-    std::array<Scalar, dim> finite_difference_gradient(std::array<Scalar, dim> pos) const
+    std::array<Scalar, dim> finite_difference_gradient(
+        std::array<Scalar, dim> pos,
+        Scalar delta = 1e-6) const
     {
-        constexpr Scalar delta = 1e-6;
         std::array<Scalar, dim> grad{};
         for (int i = 0; i < dim; ++i) {
             std::array<Scalar, dim> pos_plus = pos;

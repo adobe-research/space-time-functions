@@ -8,11 +8,13 @@
 template <int dim>
 void check_gradient(
     const stf::ImplicitFunction<dim>& implicit,
-    const std::array<stf::Scalar, dim>& pos)
+    const std::array<stf::Scalar, dim>& pos,
+    stf::Scalar delta = 1e-6,
+    stf::Scalar epsilon = 1e-6
+    )
 {
-    constexpr stf::Scalar epsilon = 1e-6;
     auto grad = implicit.gradient(pos);
-    auto grad_fd = implicit.finite_difference_gradient(pos);
+    auto grad_fd = implicit.finite_difference_gradient(pos, delta);
     for (int i = 0; i < dim; ++i) {
         REQUIRE_THAT(grad[i], Catch::Matchers::WithinAbs(grad_fd[i], epsilon));
     }
@@ -95,5 +97,15 @@ TEST_CASE("primitive", "[stf]")
         check_gradient(capsule, {1, 1, 0});
         check_gradient(capsule, {-0.5, 0, 0});
         check_gradient(capsule, {1.5, 0, 0});
+    }
+
+    SECTION("vipss") {
+        stf::Vipss vipss(
+            {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0}},
+            {{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {13, 14, 15, 16}},
+            {17, 18, 19, 20});
+        check_gradient(vipss, {0.1, 0.1, 0.1});
+        check_gradient(vipss, {1.0, 0.0, 0.0}, 1e-6, 1e-3);
+        check_gradient(vipss, {1.1, -0.1, 0.5});
     }
 }
