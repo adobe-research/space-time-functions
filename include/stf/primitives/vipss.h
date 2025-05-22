@@ -107,7 +107,9 @@ public:
 
         result += m_affine_coeffs[0] + m_affine_coeffs[1] * pos[0] + m_affine_coeffs[2] * pos[1] +
                   m_affine_coeffs[3] * pos[2];
-        return result;
+
+        // Negate because the default vipss has positive values inside.
+        return -result;
     }
 
     /**
@@ -156,7 +158,8 @@ public:
                     m_affine_coeffs[2],
                     m_affine_coeffs[3],
                 });
-        result = scale(result, m_scale);
+        // Negate because the default vipss has positive values inside.
+        result = scale(result, -m_scale);
         return result;
     }
 
