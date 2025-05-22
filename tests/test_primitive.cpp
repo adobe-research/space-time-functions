@@ -108,4 +108,36 @@ TEST_CASE("primitive", "[stf]")
         check_gradient(vipss, {1.0, 0.0, 0.0}, 1e-6, 1e-3);
         check_gradient(vipss, {1.1, -0.1, 0.5});
     }
+
+    SECTION("vipss with transformation") {
+        stf::Vipss vipss(
+            {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0}},
+            {{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {13, 14, 15, 16}},
+            {17, 18, 19, 20});
+        stf::Vipss vipss_transformed(
+            {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0}},
+            {{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {13, 14, 15, 16}},
+            {17, 18, 19, 20},
+            {1, 1, 1},  // translation
+            0.5);
+        check_gradient(vipss_transformed, {0.1, 0.1, 0.1});
+        check_gradient(vipss_transformed, {1.0, 0.0, 0.0}, 1e-6, 1e-3);
+        check_gradient(vipss_transformed, {1.1, -0.1, 0.5});
+
+        SECTION("Evaluate at center") {
+            auto v = vipss.value({0, 0, 0});
+            auto r = vipss_transformed.value({1, 1, 1});
+            REQUIRE_THAT(v, Catch::Matchers::WithinAbs(r, 1e-6));
+        }
+        SECTION("Evaluate at bbox_min") {
+            auto v = vipss.value({-0.5, -0.5, -0.5});
+            auto r = vipss_transformed.value({0.75, 0.75, 0.75});
+            REQUIRE_THAT(v, Catch::Matchers::WithinAbs(r, 1e-6));
+        }
+        SECTION("Evaluate at bbox_max") {
+            auto v = vipss.value({0.5, 0.5, 0.5});
+            auto r = vipss_transformed.value({1.25, 1.25, 1.25});
+            REQUIRE_THAT(v, Catch::Matchers::WithinAbs(r, 1e-6));
+        }
+    }
 }
