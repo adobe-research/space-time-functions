@@ -5,6 +5,7 @@
 #include <stf/transforms/transform.h>
 
 #include <array>
+#include <cassert>
 #include <stdexcept>
 #include <tuple>
 #include <vector>
@@ -128,10 +129,13 @@ public:
 
             auto bezier_point = bezier(control_points, alpha);
             if constexpr (dim == 3) {
-                return {pos[0]-bezier_point[0], pos[1]-bezier_point[1], pos[2]-bezier_point[2]};
+                return {
+                    pos[0] - bezier_point[0],
+                    pos[1] - bezier_point[1],
+                    pos[2] - bezier_point[2]};
             } else {
                 static_assert(dim == 2, "PolyBezier only support 2D and 3D.");
-                return {pos[0]-bezier_point[0], pos[1]-bezier_point[1]};
+                return {pos[0] - bezier_point[0], pos[1] - bezier_point[1]};
             }
         }
     }
