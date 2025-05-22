@@ -100,7 +100,7 @@ TEST_CASE("primitive", "[stf]")
     }
 
     SECTION("vipss") {
-        stf::Vipss vipss(
+        stf::Duchon vipss(
             {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0}},
             {{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {13, 14, 15, 16}},
             {17, 18, 19, 20});
@@ -110,11 +110,11 @@ TEST_CASE("primitive", "[stf]")
     }
 
     SECTION("vipss with transformation") {
-        stf::Vipss vipss(
+        stf::Duchon vipss(
             {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0}},
             {{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {13, 14, 15, 16}},
             {17, 18, 19, 20});
-        stf::Vipss vipss_transformed(
+        stf::Duchon vipss_transformed(
             {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0}},
             {{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {13, 14, 15, 16}},
             {17, 18, 19, 20},
