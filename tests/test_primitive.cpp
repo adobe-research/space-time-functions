@@ -10,8 +10,7 @@ void check_gradient(
     const stf::ImplicitFunction<dim>& implicit,
     const std::array<stf::Scalar, dim>& pos,
     stf::Scalar delta = 1e-6,
-    stf::Scalar epsilon = 1e-6
-    )
+    stf::Scalar epsilon = 1e-6)
 {
     auto grad = implicit.gradient(pos);
     auto grad_fd = implicit.finite_difference_gradient(pos, delta);
@@ -22,7 +21,8 @@ void check_gradient(
 
 TEST_CASE("primitive", "[stf]")
 {
-    SECTION("ball") {
+    SECTION("ball")
+    {
         stf::ImplicitBall<3> ball(1.0, {0, 0, 0});
         REQUIRE_THAT(ball.value({0, 0, 0}), Catch::Matchers::WithinAbs(-1, 1e-6));
         REQUIRE_THAT(ball.value({1, 0, 0}), Catch::Matchers::WithinAbs(0, 1e-6));
@@ -30,7 +30,8 @@ TEST_CASE("primitive", "[stf]")
         check_gradient(ball, {1, 0, 0});
     }
 
-    SECTION("quadratic ball") {
+    SECTION("quadratic ball")
+    {
         stf::ImplicitBall<3> ball(1.0, {0, 0, 0}, 2);
         REQUIRE_THAT(ball.value({0, 0, 0}), Catch::Matchers::WithinAbs(-1, 1e-6));
         REQUIRE_THAT(ball.value({1, 0, 0}), Catch::Matchers::WithinAbs(0, 1e-6));
@@ -38,7 +39,8 @@ TEST_CASE("primitive", "[stf]")
         check_gradient(ball, {1, 0, 0});
     }
 
-    SECTION("ball not at origin") {
+    SECTION("ball not at origin")
+    {
         stf::ImplicitBall<3> ball(1.0, {1, 1, 1});
         REQUIRE_THAT(ball.value({0, 0, 0}), Catch::Matchers::WithinAbs(std::sqrt(3) - 1, 1e-6));
         REQUIRE_THAT(ball.value({1, 0, 0}), Catch::Matchers::WithinAbs(std::sqrt(2) - 1, 1e-6));
@@ -46,7 +48,8 @@ TEST_CASE("primitive", "[stf]")
         check_gradient(ball, {1, 0, 0});
     }
 
-    SECTION("quadratic 2D ball not at origin") {
+    SECTION("quadratic 2D ball not at origin")
+    {
         stf::ImplicitBall<2> ball(1.0, {1, 2}, 2);
         REQUIRE_THAT(ball.value({0, 0}), Catch::Matchers::WithinAbs(4, 1e-6));
         REQUIRE_THAT(ball.value({1, 0}), Catch::Matchers::WithinAbs(3, 1e-6));
@@ -54,7 +57,8 @@ TEST_CASE("primitive", "[stf]")
         check_gradient(ball, {1, 0});
     }
 
-    SECTION("union") {
+    SECTION("union")
+    {
         stf::ImplicitBall<3> ball_1(0.5, {-0.6, 0, 0});
         stf::ImplicitBall<3> ball_2(0.5, {0.6, 0, 0});
         stf::ImplicitUnion<3> shape(ball_1, ball_2);
@@ -66,7 +70,8 @@ TEST_CASE("primitive", "[stf]")
         check_gradient(shape, {-0.5, 0, 0});
     }
 
-    SECTION("soft union") {
+    SECTION("soft union")
+    {
         stf::ImplicitBall<3> ball_1(0.5, {-0.6, 0, 0});
         stf::ImplicitBall<3> ball_2(0.5, {0.6, 0, 0});
         stf::ImplicitUnion<3> shape(ball_1, ball_2, 0.2);
@@ -80,7 +85,8 @@ TEST_CASE("primitive", "[stf]")
         check_gradient(shape, {1, 1, 1});
     }
 
-    SECTION("capsule") {
+    SECTION("capsule")
+    {
         stf::ImplicitCapsule<3> capsule(0.5, {0, 0, 0}, {1, 0, 0});
 
         REQUIRE_THAT(capsule.value({0, 0, 0}), Catch::Matchers::WithinAbs(-0.5, 1e-6));
@@ -99,7 +105,8 @@ TEST_CASE("primitive", "[stf]")
         check_gradient(capsule, {1.5, 0, 0});
     }
 
-    SECTION("vipss") {
+    SECTION("vipss")
+    {
         stf::Duchon vipss(
             {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0}},
             {{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {13, 14, 15, 16}},
@@ -109,7 +116,23 @@ TEST_CASE("primitive", "[stf]")
         check_gradient(vipss, {1.1, -0.1, 0.5});
     }
 
-    SECTION("vipss with transformation") {
+    SECTION("vipss negated")
+    {
+        stf::Duchon vipss(
+            {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0}},
+            {{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {13, 14, 15, 16}},
+            {17, 18, 19, 20},
+            {0, 0, 0},
+            1.0,
+            true);
+        check_gradient(vipss, {0.1, 0.1, 0.1});
+        check_gradient(vipss, {1.0, 0.0, 0.0}, 1e-6, 1e-3);
+        check_gradient(vipss, {1.1, -0.1, 0.5});
+        check_gradient(vipss, {0.0, 0.0, 0.0});
+    }
+
+    SECTION("vipss with transformation")
+    {
         stf::Duchon vipss(
             {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0}},
             {{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {13, 14, 15, 16}},
@@ -118,23 +141,26 @@ TEST_CASE("primitive", "[stf]")
             {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0}},
             {{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {13, 14, 15, 16}},
             {17, 18, 19, 20},
-            {1, 1, 1},  // translation
+            {1, 1, 1}, // translation
             0.5);
         check_gradient(vipss_transformed, {0.1, 0.1, 0.1});
         check_gradient(vipss_transformed, {1.0, 0.0, 0.0}, 1e-6, 1e-3);
         check_gradient(vipss_transformed, {1.1, -0.1, 0.5});
 
-        SECTION("Evaluate at center") {
+        SECTION("Evaluate at center")
+        {
             auto v = vipss.value({0, 0, 0});
             auto r = vipss_transformed.value({1, 1, 1});
             REQUIRE_THAT(v, Catch::Matchers::WithinAbs(r, 1e-6));
         }
-        SECTION("Evaluate at bbox_min") {
+        SECTION("Evaluate at bbox_min")
+        {
             auto v = vipss.value({-0.5, -0.5, -0.5});
             auto r = vipss_transformed.value({0.75, 0.75, 0.75});
             REQUIRE_THAT(v, Catch::Matchers::WithinAbs(r, 1e-6));
         }
-        SECTION("Evaluate at bbox_max") {
+        SECTION("Evaluate at bbox_max")
+        {
             auto v = vipss.value({0.5, 0.5, 0.5});
             auto r = vipss_transformed.value({1.25, 1.25, 1.25});
             REQUIRE_THAT(v, Catch::Matchers::WithinAbs(r, 1e-6));
