@@ -27,6 +27,13 @@ namespace stf {
  * - gᵢ is the gradient of dᵢ³
  * - aᵢ and bᵢ are the RBF coefficients
  * - c₀, c₁, c₂, c₃ are the affine coefficients
+ *
+ * The class provides functionality to:
+ * - Construct the interpolant from control points and coefficients
+ * - Load the interpolant from files
+ * - Evaluate the implicit function at any point in 3D space
+ * - Compute the gradient of the implicit function
+ * - Normalize the space for better numerical stability
  */
 class Duchon : public ImplicitFunction<3>
 {
@@ -43,6 +50,8 @@ public:
      * @param radius The target bounding sphere radius of the implicit surface
      * @param positive_inside Flag indicating if the inside of the surface is positive
      * @throws std::runtime_error if the number of points and RBF coefficients don't match
+     * @throws std::runtime_error if no control points are provided
+     * @throws std::runtime_error if radius is too close to zero
      */
     Duchon(
         std::vector<std::array<Scalar, 3>> points,
@@ -69,6 +78,18 @@ public:
         initialize_normalization(center, radius);
     }
 
+    /**
+     * @brief Constructs a Duchon's interpolant from files containing sample points and coefficients.
+     *
+     * @param samples_file Path to the .xyz file containing 3D sample points
+     * @param coeffs_file Path to the file containing RBF and affine coefficients
+     * @param center The target center of the implicit surface
+     * @param radius The target bounding sphere radius of the implicit surface
+     * @param positive_inside Flag indicating if the inside of the surface is positive
+     * @throws std::runtime_error if the samples file format is invalid
+     * @throws std::runtime_error if the points are not 3D
+     * @throws std::runtime_error if no samples are found in the file
+     */
     Duchon(
         std::filesystem::path samples_file,
         std::filesystem::path coeffs_file,
@@ -201,6 +222,15 @@ public:
     }
 
 private:
+    /**
+     * @brief Initializes the normalization parameters for better numerical stability.
+     *
+     * Computes the bounding box of the control points and sets up the transformation
+     * to map the points to a unit sphere centered at the specified center.
+     *
+     * @param center The target center of the normalized space
+     * @param radius The target radius of the normalized space
+     */
     void initialize_normalization(std::array<Scalar, 3> center, Scalar radius)
     {
         std::array<Scalar, 3> bbox_min = m_points.front();
