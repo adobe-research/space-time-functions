@@ -19,7 +19,7 @@ using Scalar = stf::Scalar;
 stf::ExplicitForm<3> f(
     [](std::array<Scalar, 3> x, Scalar t) {
         constexpr Scalar r = 0.5;
-        return (x[0] - t) * (x[1] - t) + x[1] * x[1] + x[2] * x[2] - r * r;
+        return (x[0] - t) * (x[0] - t) + x[1] * x[1] + x[2] * x[2] - r * r;
     }
 );
 ```
