@@ -45,7 +45,7 @@ construction.
 constexpr Scalar radius = 0.5;
 
 auto value_fn = [r=radius](std::array<Scalar, 3> x, Scalar t) {
-    return (x[0] - t) * (x[1] - t) + x[1] * x[1] + x[2] * x[2] - r * r;
+    return (x[0] - t) * (x[0] - t) + x[1] * x[1] + x[2] * x[2] - r * r;
 };
 
 auto grad_fn = [r=radius](std::array<Scalar, 3> x, Scalar t) {
