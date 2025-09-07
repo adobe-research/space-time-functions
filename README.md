@@ -114,6 +114,9 @@ stf::GenericFunction<Dim> f(value_fn, grad_fn);
 ```
 
 where `value_fn` is the implicit function and `grad_fn` its spatial gradient function.
+
+#### Soft union of spatial functions
+
 In addition, it is often useful to union two implicit shapes together to form a more complex spatial
 function:
 
@@ -124,8 +127,8 @@ stf::ImplicitUnion<Dim> f(f1, f2, smooth_distance);
 
 Note that the implicit union function implements the [soft
 union](https://iquilezles.org/articles/smin/) operation.
-The `smooth_distance` parameter controls the amount of smoothness, and 0 `smooth_distance`
-corresponds to the regular union operation.
+The `smooth_distance` parameter controls the amount of smoothness, and `smooth_distance = 0`
+corresponds to the regular (non-smooth) union operation.
 By default, we use the quadratic blending function for the soft union. Other blending functions are
 also supported:
 
