@@ -70,7 +70,7 @@ TEST_CASE("primitive", "[stf]")
         check_gradient(shape, {-0.5, 0, 0});
     }
 
-    SECTION("soft union")
+    SECTION("union quadratic")
     {
         stf::ImplicitBall<3> ball_1(0.5, {-0.6, 0, 0});
         stf::ImplicitBall<3> ball_2(0.5, {0.6, 0, 0});
@@ -79,6 +79,45 @@ TEST_CASE("primitive", "[stf]")
         REQUIRE(shape.value({0, 0, 0}) < 0);
         REQUIRE_THAT(shape.value({0.5, 0, 0}), Catch::Matchers::WithinAbs(-0.4, 1e-6));
         REQUIRE_THAT(shape.value({-0.5, 0, 0}), Catch::Matchers::WithinAbs(-0.4, 1e-6));
+        check_gradient(shape, {0.0, 0, 0});
+        check_gradient(shape, {0.5, 0, 0});
+        check_gradient(shape, {-0.5, 0, 0});
+        check_gradient(shape, {1, 1, 1});
+    }
+
+    SECTION("union cubic")
+    {
+        stf::ImplicitBall<3> ball_1(0.5, {-0.6, 0, 0});
+        stf::ImplicitBall<3> ball_2(0.5, {0.6, 0, 0});
+        stf::ImplicitUnion<3, stf::BlendingFunction::Cubic> shape(ball_1, ball_2, 0.2);
+
+        REQUIRE(shape.value({0, 0, 0}) < 0);
+        check_gradient(shape, {0.0, 0, 0});
+        check_gradient(shape, {0.5, 0, 0});
+        check_gradient(shape, {-0.5, 0, 0});
+        check_gradient(shape, {1, 1, 1});
+    }
+
+    SECTION("union quartic")
+    {
+        stf::ImplicitBall<3> ball_1(0.5, {-0.6, 0, 0});
+        stf::ImplicitBall<3> ball_2(0.5, {0.6, 0, 0});
+        stf::ImplicitUnion<3, stf::BlendingFunction::Quartic> shape(ball_1, ball_2, 0.2);
+
+        REQUIRE(shape.value({0, 0, 0}) < 0);
+        check_gradient(shape, {0.0, 0, 0});
+        check_gradient(shape, {0.5, 0, 0});
+        check_gradient(shape, {-0.5, 0, 0});
+        check_gradient(shape, {1, 1, 1});
+    }
+
+    SECTION("union circular")
+    {
+        stf::ImplicitBall<3> ball_1(0.5, {-0.6, 0, 0});
+        stf::ImplicitBall<3> ball_2(0.5, {0.6, 0, 0});
+        stf::ImplicitUnion<3, stf::BlendingFunction::Circular> shape(ball_1, ball_2, 0.2);
+
+        REQUIRE(shape.value({0, 0, 0}) < 0);
         check_gradient(shape, {0.0, 0, 0});
         check_gradient(shape, {0.5, 0, 0});
         check_gradient(shape, {-0.5, 0, 0});
