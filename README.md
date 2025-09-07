@@ -123,9 +123,19 @@ stf::ImplicitUnion<Dim> f(f1, f2, smooth_distance);
 ```
 
 Note that the implicit union function implements the [soft
-union](https://iquilezles.org/articles/smin/) operation (more specifically, the quadratic polynomial
-version). The `smooth_distance` parameter controls the amount of smoothness, and 0 `smooth_distance`
+union](https://iquilezles.org/articles/smin/) operation.
+The `smooth_distance` parameter controls the amount of smoothness, and 0 `smooth_distance`
 corresponds to the regular union operation.
+By default, we use the quadratic blending function for the soft union. Other blending functions are
+also supported:
+
+```c++
+// We support four blending functions from the clamped difference (CD) family
+stf::ImplicitUnion<Dim, stf::BlendingFunction::Quadratic> f(f1, f2, smooth_distance); // default
+stf::ImplicitUnion<Dim, stf::BlendingFunction::Cubic> f(f1, f2, smooth_distance);
+stf::ImplicitUnion<Dim, stf::BlendingFunction::Quartic> f(f1, f2, smooth_distance);
+stf::ImplicitUnion<Dim, stf::BlendingFunction::Circular> f(f1, f2, smooth_distance);
+```
 
 #### Trajectories
 
