@@ -80,6 +80,10 @@ can evaluate its value, spatial gradient and time derivative just as before.
 
 #### Spatial functions
 
+A spatial function is an implicit function `f(x)` that maps R^3 to R. The zero level set of `f(x)`
+defines a surface in 3D space. The sign of `f(x)` indicates whether the point `x` is inside (`f(x) <
+0`) or outside (`f(x) > 0`) the surface.
+
 Here is a list of supported spatial functions:
 
 ```c++
@@ -109,13 +113,23 @@ It is also possible to explicitly define a spatial function:
 stf::GenericFunction<Dim> f(value_fn, grad_fn);
 ```
 
-In addition, it is often useful to union two implicit shapes together to form more complex ones:
+where `value_fn` is the implicit function and `grad_fn` its spatial gradient function.
+In addition, it is often useful to union two implicit shapes together to form a more complex spatial
+function:
 
 ```c++
-stf::ImplicitUnion<Dim> f(shape1, shape2);
+// Soft union of two implicit shapes
+stf::ImplicitUnion<Dim> f(f1, f2, smooth_distance);
 ```
 
+Note that the implicit union function implements the [soft
+union](https://iquilezles.org/articles/smin/) operation (more specifically, the quadratic polynomial
+version). The `smooth_distance` parameter controls the amount of smoothness, and 0 `smooth_distance`
+corresponds to the regular union operation.
+
 #### Trajectories
+
+
 
 ### Composite space-time functions
 
