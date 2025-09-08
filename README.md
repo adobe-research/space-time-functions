@@ -2,7 +2,7 @@
 
 This repo provides a comprehensive framework for composing implicit space-time functions.
 
-Space-time functions are mathematical functions `f(x, t)` that map R^4 to R, where `x` represents
+Space-time functions are mathematical functions `f(x, t)` that map ℝ⁴ to ℝ, where `x` represents
 spatial coordinates and `t` represents time.
 
 ## Features
@@ -61,18 +61,23 @@ stf::ExplicitForm<3> f(value_fn, grad_fn, dt_fn);
 
 ### Swept volume functions
 
-Another way of defining a space-time function is to provide a spatial function and a sweeping
-trajectory. The resulting space-time function is the swept volume of the shape moving through space.
-The same ball translation example above can be equivalently defined as:
+Another way of defining a space-time function is by sweeping an implicit shape through space.
+Let `f(x)` be a spatial function that maps ℝ³ to ℝ. The zero level set of `f(x)` defines a shape
+in 3D space. The sign of `f(x)` indicates whether the point `x` is inside (`f(x) < 0`) or outside
+(`f(x) > 0`) the shape.
+Let `g(x, t)` be a spatial transform that maps ℝ³ to ℝ³. The swept shape is defined implicitly as
+`f(g(x, t))`.
+
+For example, the same ball translation example above can be equivalently defined as:
 
 ```c++
 #include <stf/stf.h>
 
 using Scalar = stf::Scalar;
 
-stf::ImplicitBall<3> ball(0.5, {0, 0, 0});
-stf::Translation<3> translate({-1, 0, 0});
-stf::SweepFunction<3> f(ball, translate);
+stf::ImplicitBall<3> shape(0.5, {0, 0, 0});
+stf::Translation<3> transform({-1, 0, 0});
+stf::SweepFunction<3> f(shape, transform);
 ```
 
 Note that the function `f` is a sweep function, which is a special case of space-time function. One
@@ -80,37 +85,33 @@ can evaluate its value, spatial gradient and time derivative just as before.
 
 #### Spatial functions
 
-A spatial function is an implicit function `f(x)` that maps R^3 to R. The zero level set of `f(x)`
-defines a surface in 3D space. The sign of `f(x)` indicates whether the point `x` is inside (`f(x) <
-0`) or outside (`f(x) > 0`) the surface.
-
 Here is a list of supported spatial functions:
 
 ```c++
 // Implicit Ball
 // The `degree` argument specifies the distance degree (1 for L1, 2 for L2, etc.)
-stf::ImplicitBall<Dim> f(radius, center, degree);
+stf::ImplicitBall<Dim> b(radius, center, degree);
 
 // Implicit Torus
 // The torus is aligned with the XY plane.
-stf::ImplicitTorus<Dim> f(major_radius, minor_radius, center);
+stf::ImplicitTorus<Dim> b(major_radius, minor_radius, center);
 
 // Implicit capsule
 // It is defined as the offset surface of the line segment from p1 to p2.
-stf::ImplicitCapsule<Dim> f(radius, p1, p2);
+stf::ImplicitCapsule<Dim> b(radius, p1, p2);
 
 // VIPSS surface
 // The VIPSS surface is defined by the Duchon interpolant of a set of points. See [1] for details.
 //
 // [1] Huang, Zhiyang, Nathan Carr, and Tao Ju. "Variational implicit point set surfaces." ACM
 // Transactions on Graphics (TOG) 38.4 (2019): 1-13.
-stf::Duchon f(points, rbf_coeffs, affine_coeffs);
+stf::Duchon b(points, rbf_coeffs, affine_coeffs);
 ```
 
 It is also possible to explicitly define a spatial function:
 
 ```c++
-stf::GenericFunction<Dim> f(value_fn, grad_fn);
+stf::GenericFunction<Dim> b(value_fn, grad_fn);
 ```
 
 where `value_fn` is the implicit function and `grad_fn` its spatial gradient function.
@@ -122,7 +123,7 @@ function:
 
 ```c++
 // Soft union of two implicit shapes
-stf::ImplicitUnion<Dim> f(f1, f2, smooth_distance);
+stf::ImplicitUnion<Dim> b(b1, b2, smooth_distance);
 ```
 
 Note that the implicit union function implements the [soft
@@ -134,15 +135,53 @@ also supported:
 
 ```c++
 // We support four blending functions from the clamped difference (CD) family
-stf::ImplicitUnion<Dim, stf::BlendingFunction::Quadratic> f(f1, f2, smooth_distance); // default
-stf::ImplicitUnion<Dim, stf::BlendingFunction::Cubic> f(f1, f2, smooth_distance);
-stf::ImplicitUnion<Dim, stf::BlendingFunction::Quartic> f(f1, f2, smooth_distance);
-stf::ImplicitUnion<Dim, stf::BlendingFunction::Circular> f(f1, f2, smooth_distance);
+stf::ImplicitUnion<Dim, stf::BlendingFunction::Quadratic> b(b1, b2, smooth_distance); // default
+stf::ImplicitUnion<Dim, stf::BlendingFunction::Cubic> b(b1, b2, smooth_distance);
+stf::ImplicitUnion<Dim, stf::BlendingFunction::Quartic> b(b1, b2, smooth_distance);
+stf::ImplicitUnion<Dim, stf::BlendingFunction::Circular> b(b1, b2, smooth_distance);
 ```
 
-#### Trajectories
+#### Transforms
 
+Here is a list of supported spatial transforms:
 
+```c++
+// Translation
+stf::Translation<Dim> g({tx, ty, tz});
+
+// Rotation
+stf::Rotation<Dim> g(center, axis, angle);
+
+// Scaling
+stf::Scale<Dim> g(scale_factor, center);
+
+// Polyline
+stf::Polyline<Dim> g(points);
+
+// Poly-Bezier curve
+// Note that control points consist of 3N + 1 points, where N is the number of Bezier curves.
+// Points with index in [3*k,3*(k+1) +1] define a cubic Bezier curve.
+stf::PolyBezier<Dim> g(control_points, degree);
+```
+
+It is often useful to combine multiple transforms together:
+
+```c++
+stf::Compose<Dim> g(g1, g2);
+```
+
+For all transforms, the following are support:
+
+```c++
+// Map a point `x` to its transformed position at time `t`
+auto x2 = g.transform(x, t);
+
+// Velocity at point `x` and time `t`
+auto v = g.velocity(x, t);
+
+// Jacobian of the transform at point `x` and time `t`
+auto J = g.position_Jacobian(x, t);
+```
 
 ### Composite space-time functions
 
