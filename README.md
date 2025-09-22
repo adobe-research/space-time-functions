@@ -26,7 +26,7 @@ stf::ExplicitForm<3> f(
 
 This space-time function defines an implicit ball of radius 0.5 translating from (0, 0, 0) at time
 `t=0` to (1, 0, 0) at time `t=1`. Once a space-time function is defined, we can query its value,
-spatial gradient and time derivative at space-time points.
+gradient and time derivative at any space-time points.
 
 ```c++
 std::array<Scalar, 3> x = {0.5, 0.0, 0.0};
@@ -185,6 +185,38 @@ auto J = g.position_Jacobian(x, t);
 
 ### Composite space-time functions
 
+While explicit space-time functions and swept volume functions are powerful, sometimes we need to
+apply more complex operations that transform one or more space-time functions into another. This can
+be done using composite space-time functions.
+
+#### Offset function
+
+The offset function creates a new space-time function by adding a time-dependent offset to an
+existing space-time function. Let `f(x, t)` be a space-time function and `o(t)` be a scalar-valued
+time-dependent offset function. The offset space-time function is defined as `f(x, t) + o(t)`.
+
+
+```c++
+// Assume `f` is an existing `stf::SpaceTimeFunction<Dim>` object.
+
+stf::OffsetFunction<Dim> f_offset(f,
+    [](Scalar t) { return std::sin(t * 2 * M_PI); },
+    [](Scalar t) { return 2 * M_PI * std::cos(t * 2 * M_PI); }
+);
+```
+
+#### Space-time union function
+
+The space-time union function combines two space-time function via a (soft) space union operation.
+
+```c++
+// Assume `f1` and `f2` are existing `stf::SpaceTimeFunction<Dim>` objects.
+
+stf::UnionFunction<Dim> f_union(f1, f2, smooth_distance);
+```
+
+The `smoothing_distance` parameter controls the amount of smoothness, and `smoothing_distance = 0`
+corresponds to the regular (non-smooth) union operation.
 
 ## Building
 
