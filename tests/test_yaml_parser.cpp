@@ -4,6 +4,7 @@
 #include <stf/stf.h>
 #include <sstream>
 #include <fstream>
+#include <filesystem>
 
 using namespace stf;
 
@@ -787,6 +788,153 @@ transform:
         
         REQUIRE(value_explicit == Catch::Approx(value_default).epsilon(1e-10));
     }
+}
+
+TEST_CASE("YamlParser can parse Duchon primitive", "[yaml_parser]") {
+    // Create temporary test files for Duchon
+    std::string samples_content = "3\n0.0 0.0 0.0\n1.0 0.0 0.0\n0.0 1.0 0.0\n0.0 0.0 1.0\n";
+    std::string coeffs_content = "1.0 0.5 0.2 0.1\n0.8 0.3 0.1 0.0\n0.6 0.2 0.0 0.1\n0.4 0.1 0.0 0.0\n0.1 0.2 0.3 0.4\n";
+    
+    // Write temporary files
+    std::ofstream samples_file("test_samples.xyz");
+    samples_file << samples_content;
+    samples_file.close();
+    
+    std::ofstream coeffs_file("test_coeffs.txt");
+    coeffs_file << coeffs_content;
+    coeffs_file.close();
+    
+    SECTION("Duchon with absolute paths") {
+        std::string yaml_content = R"(
+type: sweep
+dimension: 3
+primitive:
+  type: duchon
+  samples_file: test_samples.xyz
+  coeffs_file: test_coeffs.txt
+  center: [0.0, 0.0, 0.0]
+  radius: 1.0
+  positive_inside: false
+transform:
+  type: translation
+  vector: [0.0, 0.0, 0.0]
+)";
+
+        auto func = YamlParser<3>::parse_from_string(yaml_content);
+        REQUIRE(func != nullptr);
+        
+        // Test function evaluation
+        std::array<Scalar, 3> pos = {0.1, 0.1, 0.1};
+        Scalar t = 0.0;
+        
+        Scalar value = func->value(pos, t);
+        REQUIRE(std::isfinite(value));
+        
+        // Test gradient computation
+        auto gradient = func->gradient(pos, t);
+        REQUIRE(std::isfinite(gradient[0]));
+        REQUIRE(std::isfinite(gradient[1]));
+        REQUIRE(std::isfinite(gradient[2]));
+        REQUIRE(std::isfinite(gradient[3])); // time derivative
+    }
+    
+    SECTION("Duchon with default parameters") {
+        std::string yaml_content = R"(
+type: sweep
+dimension: 3
+primitive:
+  type: duchon
+  samples_file: test_samples.xyz
+  coeffs_file: test_coeffs.txt
+  # center, radius, and positive_inside use defaults
+transform:
+  type: translation
+  vector: [0.0, 0.0, 0.0]
+)";
+
+        auto func = YamlParser<3>::parse_from_string(yaml_content);
+        REQUIRE(func != nullptr);
+        
+        // Test function evaluation
+        std::array<Scalar, 3> pos = {0.0, 0.0, 0.0};
+        Scalar t = 0.0;
+        
+        Scalar value = func->value(pos, t);
+        REQUIRE(std::isfinite(value));
+    }
+    
+    SECTION("Duchon in 2D should throw error") {
+        std::string yaml_content = R"(
+type: sweep
+dimension: 2
+primitive:
+  type: duchon
+  samples_file: test_samples.xyz
+  coeffs_file: test_coeffs.txt
+transform:
+  type: translation
+  vector: [0.0, 0.0]
+)";
+
+        REQUIRE_THROWS_AS(YamlParser<2>::parse_from_string(yaml_content), YamlParseError);
+    }
+    
+    // Clean up temporary files
+    std::filesystem::remove("test_samples.xyz");
+    std::filesystem::remove("test_coeffs.txt");
+}
+
+TEST_CASE("YamlParser handles relative paths correctly", "[yaml_parser]") {
+    // Create a subdirectory for test files
+    std::filesystem::create_directory("test_data");
+    
+    // Create test files in subdirectory
+    std::string samples_content = "3\n0.0 0.0 0.0\n1.0 0.0 0.0\n0.0 1.0 0.0\n0.0 0.0 1.0\n";
+    std::string coeffs_content = "1.0 0.5 0.2 0.1\n0.8 0.3 0.1 0.0\n0.6 0.2 0.0 0.1\n0.4 0.1 0.0 0.0\n0.1 0.2 0.3 0.4\n";
+    
+    std::ofstream samples_file("test_data/samples.xyz");
+    samples_file << samples_content;
+    samples_file.close();
+    
+    std::ofstream coeffs_file("test_data/coeffs.txt");
+    coeffs_file << coeffs_content;
+    coeffs_file.close();
+    
+    // Create YAML file with relative paths
+    std::string yaml_content = R"(
+type: sweep
+dimension: 3
+primitive:
+  type: duchon
+  samples_file: samples.xyz
+  coeffs_file: coeffs.txt
+  center: [0.0, 0.0, 0.0]
+  radius: 1.0
+transform:
+  type: translation
+  vector: [0.0, 0.0, 0.0]
+)";
+    
+    std::ofstream yaml_file("test_data/test.yaml");
+    yaml_file << yaml_content;
+    yaml_file.close();
+    
+    // Parse from file - relative paths should be resolved relative to YAML file location
+    auto func = YamlParser<3>::parse_from_file("test_data/test.yaml");
+    REQUIRE(func != nullptr);
+    
+    // Test function evaluation
+    std::array<Scalar, 3> pos = {0.1, 0.1, 0.1};
+    Scalar t = 0.0;
+    
+    Scalar value = func->value(pos, t);
+    REQUIRE(std::isfinite(value));
+    
+    // Clean up
+    std::filesystem::remove("test_data/samples.xyz");
+    std::filesystem::remove("test_data/coeffs.txt");
+    std::filesystem::remove("test_data/test.yaml");
+    std::filesystem::remove_all("test_data");
 }
 
 #endif

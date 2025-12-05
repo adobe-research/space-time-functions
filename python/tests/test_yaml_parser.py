@@ -723,6 +723,161 @@ transform:
         # Values should be different for different degrees
         assert abs(value_deg1 - value_deg2) > 1e-6
 
+    def test_duchon_primitive_parsing(self):
+        """Test parsing Duchon primitive with file paths."""
+        import tempfile
+        import os
+        
+        # Create temporary test files
+        samples_content = "3\n0.0 0.0 0.0\n1.0 0.0 0.0\n0.0 1.0 0.0\n0.0 0.0 1.0\n"
+        coeffs_content = "1.0 0.5 0.2 0.1\n0.8 0.3 0.1 0.0\n0.6 0.2 0.0 0.1\n0.4 0.1 0.0 0.0\n0.1 0.2 0.3 0.4\n"
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            samples_file = os.path.join(temp_dir, "samples.xyz")
+            coeffs_file = os.path.join(temp_dir, "coeffs.txt")
+            
+            with open(samples_file, 'w') as f:
+                f.write(samples_content)
+            with open(coeffs_file, 'w') as f:
+                f.write(coeffs_content)
+            
+            yaml_content = f"""
+type: sweep
+dimension: 3
+primitive:
+  type: duchon
+  samples_file: {samples_file}
+  coeffs_file: {coeffs_file}
+  center: [0.0, 0.0, 0.0]
+  radius: 1.0
+  positive_inside: false
+transform:
+  type: translation
+  vector: [0.0, 0.0, 0.0]
+"""
+            
+            func = stf.parse_space_time_function_from_string(yaml_content)
+            assert func is not None
+            
+            # Test function evaluation
+            pos = [0.1, 0.1, 0.1]
+            t = 0.0
+            value = func.value(pos, t)
+            assert abs(value) < float('inf')
+            
+            # Test gradient computation
+            gradient = func.gradient(pos, t)
+            assert len(gradient) == 4  # [df/dx, df/dy, df/dz, df/dt]
+            assert all(abs(g) < float('inf') for g in gradient)
+
+    def test_duchon_relative_paths(self):
+        """Test that relative paths are resolved relative to YAML file directory."""
+        import tempfile
+        import os
+        
+        # Create temporary test files
+        samples_content = "3\n0.0 0.0 0.0\n1.0 0.0 0.0\n0.0 1.0 0.0\n0.0 0.0 1.0\n"
+        coeffs_content = "1.0 0.5 0.2 0.1\n0.8 0.3 0.1 0.0\n0.6 0.2 0.0 0.1\n0.4 0.1 0.0 0.0\n0.1 0.2 0.3 0.4\n"
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create subdirectory for data files
+            data_dir = os.path.join(temp_dir, "data")
+            os.makedirs(data_dir)
+            
+            samples_file = os.path.join(data_dir, "samples.xyz")
+            coeffs_file = os.path.join(data_dir, "coeffs.txt")
+            yaml_file = os.path.join(data_dir, "test.yaml")
+            
+            with open(samples_file, 'w') as f:
+                f.write(samples_content)
+            with open(coeffs_file, 'w') as f:
+                f.write(coeffs_content)
+            
+            # YAML with relative paths
+            yaml_content = """
+type: sweep
+dimension: 3
+primitive:
+  type: duchon
+  samples_file: samples.xyz
+  coeffs_file: coeffs.txt
+  center: [0.0, 0.0, 0.0]
+  radius: 1.0
+transform:
+  type: translation
+  vector: [0.0, 0.0, 0.0]
+"""
+            
+            with open(yaml_file, 'w') as f:
+                f.write(yaml_content)
+            
+            # Parse from file - relative paths should be resolved
+            func = stf.parse_space_time_function_from_file(yaml_file)
+            assert func is not None
+            
+            # Test function evaluation
+            pos = [0.1, 0.1, 0.1]
+            t = 0.0
+            value = func.value(pos, t)
+            assert abs(value) < float('inf')
+
+    def test_duchon_2d_error(self):
+        """Test that Duchon in 2D throws an error."""
+        yaml_content = """
+type: sweep
+dimension: 2
+primitive:
+  type: duchon
+  samples_file: dummy.xyz
+  coeffs_file: dummy.txt
+transform:
+  type: translation
+  vector: [0.0, 0.0]
+"""
+        
+        with pytest.raises(stf.YamlParseError):
+            stf.parse_space_time_function_from_string_2d(yaml_content)
+
+    def test_duchon_default_parameters(self):
+        """Test Duchon with default parameters."""
+        import tempfile
+        import os
+        
+        # Create temporary test files
+        samples_content = "3\n0.0 0.0 0.0\n1.0 0.0 0.0\n0.0 1.0 0.0\n0.0 0.0 1.0\n"
+        coeffs_content = "1.0 0.5 0.2 0.1\n0.8 0.3 0.1 0.0\n0.6 0.2 0.0 0.1\n0.4 0.1 0.0 0.0\n0.1 0.2 0.3 0.4\n"
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            samples_file = os.path.join(temp_dir, "samples.xyz")
+            coeffs_file = os.path.join(temp_dir, "coeffs.txt")
+            
+            with open(samples_file, 'w') as f:
+                f.write(samples_content)
+            with open(coeffs_file, 'w') as f:
+                f.write(coeffs_content)
+            
+            yaml_content = f"""
+type: sweep
+dimension: 3
+primitive:
+  type: duchon
+  samples_file: {samples_file}
+  coeffs_file: {coeffs_file}
+  # center, radius, and positive_inside use defaults
+transform:
+  type: translation
+  vector: [0.0, 0.0, 0.0]
+"""
+            
+            func = stf.parse_space_time_function_from_string(yaml_content)
+            assert func is not None
+            
+            # Test function evaluation
+            pos = [0.0, 0.0, 0.0]
+            t = 0.0
+            value = func.value(pos, t)
+            assert abs(value) < float('inf')
+
 
 if __name__ == "__main__":
     pytest.main([__file__])

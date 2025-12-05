@@ -7,6 +7,7 @@
 #include <stf/space_time_function.h>
 #include <stf/sweep_function.h>
 #include <stf/union_function.h>
+#include <stf/primitives/duchon.h>
 #include <yaml-cpp/yaml.h>
 
 #include <cassert>
@@ -143,34 +144,36 @@ public:
      * @brief Parse a space-time function from a YAML node
      *
      * @param node YAML node containing the function definition
+     * @param yaml_file_dir Directory containing the YAML file (for resolving relative paths)
      * @return std::unique_ptr<SpaceTimeFunction<dim>> Parsed space-time function
      * @throws YamlParseError if parsing fails
      */
-    static std::unique_ptr<SpaceTimeFunction<dim>> parse_from_node(const YAML::Node& node);
+    static std::unique_ptr<SpaceTimeFunction<dim>> parse_from_node(const YAML::Node& node, const std::string& yaml_file_dir = "");
 
 private:
     // Helper methods for parsing different components
     static std::unique_ptr<ImplicitFunction<dim>> parse_primitive(
-        const YAML::Node& node, Context<dim>& context);
+        const YAML::Node& node, Context<dim>& context, const std::string& yaml_file_dir = "");
     static std::unique_ptr<Transform<dim>> parse_transform(
         const YAML::Node& node, Context<dim>& context);
 
     // Specific parsers for different space-time function types
     static std::unique_ptr<SpaceTimeFunction<dim>> parse_explicit_form(
-        const YAML::Node& node, Context<dim>& context);
+        const YAML::Node& node, Context<dim>& context, const std::string& yaml_file_dir = "");
     static std::unique_ptr<SpaceTimeFunction<dim>> parse_sweep_function(
-        const YAML::Node& node, Context<dim>& context);
+        const YAML::Node& node, Context<dim>& context, const std::string& yaml_file_dir = "");
     static std::unique_ptr<SpaceTimeFunction<dim>> parse_offset_function(
-        const YAML::Node& node, Context<dim>& context);
+        const YAML::Node& node, Context<dim>& context, const std::string& yaml_file_dir = "");
     static std::unique_ptr<SpaceTimeFunction<dim>> parse_union_function(
-        const YAML::Node& node, Context<dim>& context);
+        const YAML::Node& node, Context<dim>& context, const std::string& yaml_file_dir = "");
     static std::unique_ptr<SpaceTimeFunction<dim>> parse_interpolate_function(
-        const YAML::Node& node, Context<dim>& context);
+        const YAML::Node& node, Context<dim>& context, const std::string& yaml_file_dir = "");
 
     // Specific parsers for primitives
     static std::unique_ptr<ImplicitFunction<dim>> parse_ball(const YAML::Node& node);
     static std::unique_ptr<ImplicitFunction<dim>> parse_capsule(const YAML::Node& node);
     static std::unique_ptr<ImplicitFunction<dim>> parse_torus(const YAML::Node& node);
+    static std::unique_ptr<ImplicitFunction<dim>> parse_duchon(const YAML::Node& node, const std::string& yaml_file_dir = "");
 
     // Specific parsers for transforms
     static std::unique_ptr<Transform<dim>> parse_translation(const YAML::Node& node);

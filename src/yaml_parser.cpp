@@ -8,6 +8,7 @@
 #include <sstream>
 #include <string>
 #include <cmath>
+#include <filesystem>
 
 namespace stf {
 
@@ -15,7 +16,10 @@ template <int dim>
 std::unique_ptr<SpaceTimeFunction<dim>> YamlParser<dim>::parse_from_file(const std::string& filename) {
     try {
         YAML::Node node = YAML::LoadFile(filename);
-        return parse_from_node(node);
+        // Extract directory from filename for relative path resolution
+        std::filesystem::path file_path(filename);
+        std::string yaml_file_dir = file_path.parent_path().string();
+        return parse_from_node(node, yaml_file_dir);
     } catch (const YAML::Exception& e) {
         std::stringstream err_msg;
         err_msg << "Failed to load file '" << filename << "': " << e.what();
@@ -36,7 +40,7 @@ std::unique_ptr<SpaceTimeFunction<dim>> YamlParser<dim>::parse_from_string(const
 }
 
 template <int dim>
-std::unique_ptr<SpaceTimeFunction<dim>> YamlParser<dim>::parse_from_node(const YAML::Node& node) {
+std::unique_ptr<SpaceTimeFunction<dim>> YamlParser<dim>::parse_from_node(const YAML::Node& node, const std::string& yaml_file_dir) {
     validate_dimension(node);
     validate_required_field(node, "type");
     
@@ -48,15 +52,15 @@ std::unique_ptr<SpaceTimeFunction<dim>> YamlParser<dim>::parse_from_node(const Y
     std::unique_ptr<SpaceTimeFunction<dim>> function;
     
     if (type == "explicit") {
-        function = parse_explicit_form(node, *context);
+        function = parse_explicit_form(node, *context, yaml_file_dir);
     } else if (type == "sweep") {
-        function = parse_sweep_function(node, *context);
+        function = parse_sweep_function(node, *context, yaml_file_dir);
     } else if (type == "offset") {
-        function = parse_offset_function(node, *context);
+        function = parse_offset_function(node, *context, yaml_file_dir);
     } else if (type == "union") {
-        function = parse_union_function(node, *context);
+        function = parse_union_function(node, *context, yaml_file_dir);
     } else if (type == "interpolate") {
-        function = parse_interpolate_function(node, *context);
+        function = parse_interpolate_function(node, *context, yaml_file_dir);
     } else {
         throw YamlParseError("Unknown space-time function type: " + type);
     }
@@ -66,7 +70,7 @@ std::unique_ptr<SpaceTimeFunction<dim>> YamlParser<dim>::parse_from_node(const Y
 }
 
 template <int dim>
-std::unique_ptr<SpaceTimeFunction<dim>> YamlParser<dim>::parse_explicit_form(const YAML::Node& node, Context<dim>& context) {
+std::unique_ptr<SpaceTimeFunction<dim>> YamlParser<dim>::parse_explicit_form(const YAML::Node& node, Context<dim>& context, const std::string& yaml_file_dir) {
     // For explicit forms, we would need to support function definitions in YAML
     // This is complex and would require a scripting language or mathematical expression parser
     // For now, we'll throw an error suggesting this isn't supported via YAML
@@ -74,11 +78,11 @@ std::unique_ptr<SpaceTimeFunction<dim>> YamlParser<dim>::parse_explicit_form(con
 }
 
 template <int dim>
-std::unique_ptr<SpaceTimeFunction<dim>> YamlParser<dim>::parse_sweep_function(const YAML::Node& node, Context<dim>& context) {
+std::unique_ptr<SpaceTimeFunction<dim>> YamlParser<dim>::parse_sweep_function(const YAML::Node& node, Context<dim>& context, const std::string& yaml_file_dir) {
     validate_required_field(node, "primitive");
     validate_required_field(node, "transform");
     
-    auto primitive = parse_primitive(node["primitive"], context);
+    auto primitive = parse_primitive(node["primitive"], context, yaml_file_dir);
     auto transform = parse_transform(node["transform"], context);
     
     // Store the objects and get raw pointers
@@ -89,11 +93,11 @@ std::unique_ptr<SpaceTimeFunction<dim>> YamlParser<dim>::parse_sweep_function(co
 }
 
 template <int dim>
-std::unique_ptr<SpaceTimeFunction<dim>> YamlParser<dim>::parse_offset_function(const YAML::Node& node, Context<dim>& context) {
+std::unique_ptr<SpaceTimeFunction<dim>> YamlParser<dim>::parse_offset_function(const YAML::Node& node, Context<dim>& context, const std::string& yaml_file_dir) {
     validate_required_field(node, "base_function");
     
     // Parse the base function recursively - this will create its own ManagedSpaceTimeFunction
-    auto base_function = parse_from_node(node["base_function"]);
+    auto base_function = parse_from_node(node["base_function"], yaml_file_dir);
     
     // For now, we'll support simple constant offsets
     Scalar offset = parse_scalar(node, "offset");
@@ -109,7 +113,7 @@ std::unique_ptr<SpaceTimeFunction<dim>> YamlParser<dim>::parse_offset_function(c
 }
 
 template <int dim>
-std::unique_ptr<SpaceTimeFunction<dim>> YamlParser<dim>::parse_union_function(const YAML::Node& node, Context<dim>& context) {
+std::unique_ptr<SpaceTimeFunction<dim>> YamlParser<dim>::parse_union_function(const YAML::Node& node, Context<dim>& context, const std::string& yaml_file_dir) {
     validate_required_field(node, "functions");
     
     if (!node["functions"].IsSequence()) {
@@ -118,7 +122,7 @@ std::unique_ptr<SpaceTimeFunction<dim>> YamlParser<dim>::parse_union_function(co
     
     std::vector<std::unique_ptr<SpaceTimeFunction<dim>>> functions;
     for (const auto& func_node : node["functions"]) {
-        functions.push_back(parse_from_node(func_node));
+        functions.push_back(parse_from_node(func_node, yaml_file_dir));
     }
     
     if (functions.size() < 2) {
@@ -144,7 +148,7 @@ std::unique_ptr<SpaceTimeFunction<dim>> YamlParser<dim>::parse_union_function(co
 }
 
 template <int dim>
-std::unique_ptr<ImplicitFunction<dim>> YamlParser<dim>::parse_primitive(const YAML::Node& node, Context<dim>& context) {
+std::unique_ptr<ImplicitFunction<dim>> YamlParser<dim>::parse_primitive(const YAML::Node& node, Context<dim>& context, const std::string& yaml_file_dir) {
     validate_required_field(node, "type");
     
     std::string type = parse_string(node, "type");
@@ -155,6 +159,8 @@ std::unique_ptr<ImplicitFunction<dim>> YamlParser<dim>::parse_primitive(const YA
         return parse_capsule(node);
     } else if (type == "torus") {
         return parse_torus(node);
+    } else if (type == "duchon") {
+        return parse_duchon(node, yaml_file_dir);
     } else {
         throw YamlParseError("Unknown primitive type: " + type);
     }
@@ -400,13 +406,13 @@ std::unique_ptr<Transform<dim>> YamlParser<dim>::parse_polybezier(const YAML::No
 }
 
 template <int dim>
-std::unique_ptr<SpaceTimeFunction<dim>> YamlParser<dim>::parse_interpolate_function(const YAML::Node& node, Context<dim>& context) {
+std::unique_ptr<SpaceTimeFunction<dim>> YamlParser<dim>::parse_interpolate_function(const YAML::Node& node, Context<dim>& context, const std::string& yaml_file_dir) {
     validate_required_field(node, "function1");
     validate_required_field(node, "function2");
     
     // Parse the two functions to interpolate between
-    auto function1 = parse_from_node(node["function1"]);
-    auto function2 = parse_from_node(node["function2"]);
+    auto function1 = parse_from_node(node["function1"], yaml_file_dir);
+    auto function2 = parse_from_node(node["function2"], yaml_file_dir);
     
     // Store the functions and get raw pointers
     auto* function1_ptr = context.add_function(std::move(function1));
@@ -539,6 +545,48 @@ template <int dim>
 void YamlParser<dim>::validate_required_field(const YAML::Node& node, const std::string& field_name) {
     if (!node[field_name]) {
         throw YamlParseError("Missing required field: " + field_name);
+    }
+}
+
+template <int dim>
+std::unique_ptr<ImplicitFunction<dim>> YamlParser<dim>::parse_duchon(const YAML::Node& node, const std::string& yaml_file_dir) {
+    if constexpr (dim != 3) {
+        throw YamlParseError("Duchon primitive is only supported in 3D");
+    }
+    
+    validate_required_field(node, "samples_file");
+    validate_required_field(node, "coeffs_file");
+    
+    std::string samples_file = parse_string(node, "samples_file");
+    std::string coeffs_file = parse_string(node, "coeffs_file");
+    
+    // Handle relative paths by making them relative to the YAML file directory
+    std::filesystem::path samples_path(samples_file);
+    std::filesystem::path coeffs_path(coeffs_file);
+    
+    if (!samples_path.is_absolute() && !yaml_file_dir.empty()) {
+        samples_path = std::filesystem::path(yaml_file_dir) / samples_path;
+    }
+    
+    if (!coeffs_path.is_absolute() && !yaml_file_dir.empty()) {
+        coeffs_path = std::filesystem::path(yaml_file_dir) / coeffs_path;
+    }
+    
+    // Parse optional parameters with defaults
+    std::array<Scalar, 3> center{0, 0, 0};
+    if (node["center"]) {
+        center = parse_array(node, "center");
+    }
+    
+    Scalar radius = 1.0;
+    if (node["radius"]) {
+        radius = parse_scalar(node, "radius");
+    }
+    
+    bool positive_inside = parse_bool(node, "positive_inside", false);
+    
+    if constexpr (dim == 3) {
+        return std::make_unique<Duchon>(samples_path, coeffs_path, center, radius, positive_inside);
     }
 }
 
