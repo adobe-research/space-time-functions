@@ -1,0 +1,26 @@
+[build-system]
+requires = [
+    "scikit-build-core==0.11.6",
+]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "space-time-functions"
+maintainers = [{name = "Qingnan Zhou", email = "qnzhou@gmail.com"}]
+description = "Framework for creating space-time functions."
+readme = "README.md"
+requires-python = ">=3.9"
+dynamic = ["version"]
+
+[tool.scikit-build]
+install.components = ["STF_Python_Runtime"]
+wheel.packages = ["python/space_time_functions"]
+cmake.build-type = "Release"
+build-dir = "build-python"
+
+[tool.scikit-build.cmake.define]
+STF_PYTHON_BINDING = true
+
+[tool.scikit-build.metadata.version]
+provider = "scikit_build_core.metadata.regex"
+input = "python/space_time_functions/__init__.py"
