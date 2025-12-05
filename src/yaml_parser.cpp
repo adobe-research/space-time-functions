@@ -83,7 +83,7 @@ std::unique_ptr<SpaceTimeFunction<dim>> YamlParser<dim>::parse_sweep_function(co
     validate_required_field(node, "transform");
     
     auto primitive = parse_primitive(node["primitive"], context, yaml_file_dir);
-    auto transform = parse_transform(node["transform"], context);
+    auto transform = parse_transform(node["transform"], context, yaml_file_dir);
     
     // Store the objects and get raw pointers
     auto* primitive_ptr = context.add_primitive(std::move(primitive));
@@ -167,7 +167,7 @@ std::unique_ptr<ImplicitFunction<dim>> YamlParser<dim>::parse_primitive(const YA
 }
 
 template <int dim>
-std::unique_ptr<Transform<dim>> YamlParser<dim>::parse_transform(const YAML::Node& node, Context<dim>& context) {
+std::unique_ptr<Transform<dim>> YamlParser<dim>::parse_transform(const YAML::Node& node, Context<dim>& context, const std::string& yaml_file_dir) {
     validate_required_field(node, "type");
     
     std::string type = parse_string(node, "type");
@@ -179,11 +179,11 @@ std::unique_ptr<Transform<dim>> YamlParser<dim>::parse_transform(const YAML::Nod
     } else if (type == "rotation") {
         return parse_rotation(node);
     } else if (type == "compose") {
-        return parse_compose(node, context);
+        return parse_compose(node, context, yaml_file_dir);
     } else if (type == "polyline") {
-        return parse_polyline(node);
+        return parse_polyline(node, yaml_file_dir);
     } else if (type == "polybezier") {
-        return parse_polybezier(node);
+        return parse_polybezier(node, yaml_file_dir);
     } else {
         throw YamlParseError("Unknown transform type: " + type);
     }
@@ -264,7 +264,7 @@ std::unique_ptr<Transform<dim>> YamlParser<dim>::parse_rotation(const YAML::Node
 }
 
 template <int dim>
-std::unique_ptr<Transform<dim>> YamlParser<dim>::parse_compose(const YAML::Node& node, Context<dim>& context) {
+std::unique_ptr<Transform<dim>> YamlParser<dim>::parse_compose(const YAML::Node& node, Context<dim>& context, const std::string& yaml_file_dir) {
     validate_required_field(node, "transforms");
     
     if (!node["transforms"].IsSequence()) {
@@ -273,7 +273,7 @@ std::unique_ptr<Transform<dim>> YamlParser<dim>::parse_compose(const YAML::Node&
     
     std::vector<std::unique_ptr<Transform<dim>>> transforms;
     for (const auto& transform_node : node["transforms"]) {
-        transforms.push_back(parse_transform(transform_node, context));
+        transforms.push_back(parse_transform(transform_node, context, yaml_file_dir));
     }
     
     if (transforms.size() < 2) {
@@ -299,28 +299,39 @@ std::unique_ptr<Transform<dim>> YamlParser<dim>::parse_compose(const YAML::Node&
 }
 
 template <int dim>
-std::unique_ptr<Transform<dim>> YamlParser<dim>::parse_polyline(const YAML::Node& node) {
-    validate_required_field(node, "points");
-    
-    if (!node["points"].IsSequence()) {
-        throw YamlParseError("'points' field must be a sequence");
-    }
-    
+std::unique_ptr<Transform<dim>> YamlParser<dim>::parse_polyline(const YAML::Node& node, const std::string& yaml_file_dir) {
     std::vector<std::array<Scalar, dim>> points;
-    for (const auto& point_node : node["points"]) {
-        if (!point_node.IsSequence()) {
-            throw YamlParseError("Each point must be a sequence");
+    
+    // Check if points are loaded from a file or specified inline
+    if (node["points_file"]) {
+        // Load points from XYZ file
+        std::string points_file = parse_string(node, "points_file");
+        points = load_points_from_xyz(points_file, yaml_file_dir);
+        
+    } else if (node["points"]) {
+        // Load points from inline YAML array
+        if (!node["points"].IsSequence()) {
+            throw YamlParseError("'points' field must be a sequence");
         }
         
-        if (point_node.size() != dim) {
-            throw YamlParseError("Each point must have exactly " + std::to_string(dim) + " coordinates");
+        for (const auto& point_node : node["points"]) {
+            if (!point_node.IsSequence()) {
+                throw YamlParseError("Each point must be a sequence");
+            }
+            
+            if (point_node.size() != dim) {
+                throw YamlParseError("Each point must have exactly " + std::to_string(dim) + " coordinates");
+            }
+            
+            std::array<Scalar, dim> point;
+            for (int i = 0; i < dim; ++i) {
+                point[i] = point_node[i].as<Scalar>();
+            }
+            points.push_back(point);
         }
         
-        std::array<Scalar, dim> point;
-        for (int i = 0; i < dim; ++i) {
-            point[i] = point_node[i].as<Scalar>();
-        }
-        points.push_back(point);
+    } else {
+        throw YamlParseError("Polyline requires either 'points' or 'points_file' field");
     }
     
     if (points.size() < 2) {
@@ -331,10 +342,39 @@ std::unique_ptr<Transform<dim>> YamlParser<dim>::parse_polyline(const YAML::Node
 }
 
 template <int dim>
-std::unique_ptr<Transform<dim>> YamlParser<dim>::parse_polybezier(const YAML::Node& node) {
-    // Check if we have control_points (direct specification) or sample_points (from samples)
-    if (node["control_points"]) {
-        // Direct control points specification
+std::unique_ptr<Transform<dim>> YamlParser<dim>::parse_polybezier(const YAML::Node& node, const std::string& yaml_file_dir) {
+    bool follow_tangent = parse_bool(node, "follow_tangent", true);
+    
+    // Check different ways to specify points (in order of preference)
+    if (node["control_points_file"]) {
+        // Load control points from XYZ file
+        std::string control_points_file = parse_string(node, "control_points_file");
+        auto control_points = load_points_from_xyz(control_points_file, yaml_file_dir);
+        
+        if (control_points.size() < 4) {
+            throw YamlParseError("PolyBezier must have at least 4 control points");
+        }
+        
+        if ((control_points.size() - 1) % 3 != 0) {
+            throw YamlParseError("PolyBezier must have (n * 3) + 1 control points");
+        }
+        
+        return std::make_unique<PolyBezier<dim>>(std::move(control_points), follow_tangent);
+        
+    } else if (node["sample_points_file"]) {
+        // Load sample points from XYZ file and create Bezier curve
+        std::string sample_points_file = parse_string(node, "sample_points_file");
+        auto sample_points = load_points_from_xyz(sample_points_file, yaml_file_dir);
+        
+        if (sample_points.size() < 3) {
+            throw YamlParseError("PolyBezier from samples must have at least 3 sample points");
+        }
+        
+        auto bezier = PolyBezier<dim>::from_samples(std::move(sample_points), follow_tangent);
+        return std::make_unique<PolyBezier<dim>>(std::move(bezier));
+        
+    } else if (node["control_points"]) {
+        // Direct control points specification (inline YAML)
         if (!node["control_points"].IsSequence()) {
             throw YamlParseError("'control_points' field must be a sequence");
         }
@@ -364,12 +404,10 @@ std::unique_ptr<Transform<dim>> YamlParser<dim>::parse_polybezier(const YAML::No
             throw YamlParseError("PolyBezier must have (n * 3) + 1 control points");
         }
         
-        bool follow_tangent = parse_bool(node, "follow_tangent", true);
-        
         return std::make_unique<PolyBezier<dim>>(std::move(control_points), follow_tangent);
         
     } else if (node["sample_points"]) {
-        // Create from sample points
+        // Create from sample points (inline YAML)
         if (!node["sample_points"].IsSequence()) {
             throw YamlParseError("'sample_points' field must be a sequence");
         }
@@ -395,13 +433,11 @@ std::unique_ptr<Transform<dim>> YamlParser<dim>::parse_polybezier(const YAML::No
             throw YamlParseError("PolyBezier from samples must have at least 3 sample points");
         }
         
-        bool follow_tangent = parse_bool(node, "follow_tangent", true);
-        
         auto bezier = PolyBezier<dim>::from_samples(std::move(sample_points), follow_tangent);
         return std::make_unique<PolyBezier<dim>>(std::move(bezier));
         
     } else {
-        throw YamlParseError("PolyBezier requires either 'control_points' or 'sample_points' field");
+        throw YamlParseError("PolyBezier requires one of: 'control_points_file', 'sample_points_file', 'control_points', or 'sample_points' field");
     }
 }
 
@@ -546,6 +582,54 @@ void YamlParser<dim>::validate_required_field(const YAML::Node& node, const std:
     if (!node[field_name]) {
         throw YamlParseError("Missing required field: " + field_name);
     }
+}
+
+template <int dim>
+std::vector<std::array<Scalar, dim>> YamlParser<dim>::load_points_from_xyz(const std::string& file_path, const std::string& yaml_file_dir) {
+    // Handle relative paths by making them relative to the YAML file directory
+    std::filesystem::path points_path(file_path);
+    
+    if (!points_path.is_absolute() && !yaml_file_dir.empty()) {
+        points_path = std::filesystem::path(yaml_file_dir) / points_path;
+    }
+    
+    std::ifstream file(points_path);
+    if (!file.is_open()) {
+        throw YamlParseError("Failed to open XYZ file: " + points_path.string());
+    }
+    
+    int file_dimension;
+    file >> file_dimension;
+    
+    if (file_dimension != dim) {
+        throw YamlParseError("XYZ file dimension (" + std::to_string(file_dimension) + 
+                           ") does not match expected dimension (" + std::to_string(dim) + ")");
+    }
+    
+    std::vector<std::array<Scalar, dim>> points;
+    while (file) {
+        std::array<Scalar, dim> point;
+        bool valid_point = true;
+        
+        for (int i = 0; i < dim; ++i) {
+            if (!(file >> point[i])) {
+                valid_point = false;
+                break;
+            }
+        }
+        
+        if (valid_point) {
+            points.push_back(point);
+        }
+    }
+    
+    file.close();
+    
+    if (points.empty()) {
+        throw YamlParseError("No valid points found in XYZ file: " + points_path.string());
+    }
+    
+    return points;
 }
 
 template <int dim>

@@ -878,6 +878,251 @@ transform:
             value = func.value(pos, t)
             assert abs(value) < float('inf')
 
+    def test_polyline_from_xyz_file(self):
+        """Test loading polyline points from XYZ file."""
+        import tempfile
+        import os
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create XYZ file with 2D points
+            points_content = "2\n0.0 0.0\n1.0 0.0\n1.0 1.0\n0.0 1.0\n"
+            points_file = os.path.join(temp_dir, "points.xyz")
+            
+            with open(points_file, 'w') as f:
+                f.write(points_content)
+            
+            # Create YAML file with relative path
+            yaml_content = """
+type: sweep
+dimension: 2
+primitive:
+  type: ball
+  radius: 0.2
+  center: [0.0, 0.0]
+  degree: 1
+transform:
+  type: polyline
+  points_file: points.xyz
+"""
+            
+            yaml_file = os.path.join(temp_dir, "test.yaml")
+            with open(yaml_file, 'w') as f:
+                f.write(yaml_content)
+            
+            # Parse from file - relative path should be resolved
+            func = stf.parse_space_time_function_from_file_2d(yaml_file)
+            assert func is not None
+            
+            # Test function evaluation
+            pos = [0.5, 0.0]
+            t = 0.25
+            value = func.value(pos, t)
+            assert abs(value) < float('inf')
+
+    def test_polybezier_from_xyz_files(self):
+        """Test loading polybezier points from XYZ files."""
+        import tempfile
+        import os
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create control points XYZ file
+            control_points_content = "3\n0.0 0.0 0.0\n0.5 0.0 0.0\n0.5 0.5 0.0\n1.0 0.5 0.0\n"
+            control_file = os.path.join(temp_dir, "control_points.xyz")
+            
+            with open(control_file, 'w') as f:
+                f.write(control_points_content)
+            
+            # Create sample points XYZ file
+            sample_points_content = "3\n0.0 0.0 0.0\n0.25 0.1 0.0\n0.5 0.3 0.0\n0.75 0.4 0.0\n1.0 0.5 0.0\n"
+            sample_file = os.path.join(temp_dir, "sample_points.xyz")
+            
+            with open(sample_file, 'w') as f:
+                f.write(sample_points_content)
+            
+            # Test control points file
+            yaml_control = """
+type: sweep
+dimension: 3
+primitive:
+  type: ball
+  radius: 0.15
+  center: [0.0, 0.0, 0.0]
+  degree: 1
+transform:
+  type: polybezier
+  control_points_file: control_points.xyz
+  follow_tangent: true
+"""
+            
+            yaml_file_control = os.path.join(temp_dir, "test_control.yaml")
+            with open(yaml_file_control, 'w') as f:
+                f.write(yaml_control)
+            
+            func_control = stf.parse_space_time_function_from_file(yaml_file_control)
+            assert func_control is not None
+            
+            pos = [0.5, 0.25, 0.0]
+            t = 0.5
+            value = func_control.value(pos, t)
+            assert abs(value) < float('inf')
+            
+            # Test sample points file
+            yaml_sample = """
+type: sweep
+dimension: 3
+primitive:
+  type: ball
+  radius: 0.1
+  center: [0.0, 0.0, 0.0]
+  degree: 1
+transform:
+  type: polybezier
+  sample_points_file: sample_points.xyz
+  follow_tangent: false
+"""
+            
+            yaml_file_sample = os.path.join(temp_dir, "test_sample.yaml")
+            with open(yaml_file_sample, 'w') as f:
+                f.write(yaml_sample)
+            
+            func_sample = stf.parse_space_time_function_from_file(yaml_file_sample)
+            assert func_sample is not None
+            
+            value = func_sample.value(pos, t)
+            assert abs(value) < float('inf')
+
+    def test_xyz_file_dimension_mismatch(self):
+        """Test that dimension mismatch between YAML and XYZ file throws error."""
+        import tempfile
+        import os
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create 2D XYZ file
+            points_content = "2\n0.0 0.0\n1.0 0.0\n1.0 1.0\n0.0 1.0\n"
+            points_file = os.path.join(temp_dir, "points_2d.xyz")
+            
+            with open(points_file, 'w') as f:
+                f.write(points_content)
+            
+            # Try to use it in 3D context
+            yaml_content = f"""
+type: sweep
+dimension: 3
+primitive:
+  type: ball
+  radius: 0.2
+  center: [0.0, 0.0, 0.0]
+  degree: 1
+transform:
+  type: polyline
+  points_file: {points_file}
+"""
+            
+            with pytest.raises(stf.YamlParseError):
+                stf.parse_space_time_function_from_string(yaml_content)
+
+    def test_missing_xyz_file_error(self):
+        """Test that missing XYZ file throws appropriate error."""
+        yaml_content = """
+type: sweep
+dimension: 2
+primitive:
+  type: ball
+  radius: 0.2
+  center: [0.0, 0.0]
+  degree: 1
+transform:
+  type: polyline
+  points_file: nonexistent_file.xyz
+"""
+        
+        with pytest.raises(stf.YamlParseError):
+            stf.parse_space_time_function_from_string_2d(yaml_content)
+
+    def test_insufficient_control_points_error(self):
+        """Test that insufficient control points in XYZ file throws error."""
+        import tempfile
+        import os
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create XYZ file with only 3 control points (need at least 4)
+            points_content = "3\n0.0 0.0 0.0\n0.5 0.0 0.0\n1.0 0.5 0.0\n"
+            points_file = os.path.join(temp_dir, "insufficient.xyz")
+            
+            with open(points_file, 'w') as f:
+                f.write(points_content)
+            
+            yaml_content = f"""
+type: sweep
+dimension: 3
+primitive:
+  type: ball
+  radius: 0.1
+  center: [0.0, 0.0, 0.0]
+  degree: 1
+transform:
+  type: polybezier
+  control_points_file: {points_file}
+"""
+            
+            with pytest.raises(stf.YamlParseError):
+                stf.parse_space_time_function_from_string(yaml_content)
+
+    def test_polyline_backward_compatibility(self):
+        """Test that inline points specification still works for polyline."""
+        yaml_content = """
+type: sweep
+dimension: 2
+primitive:
+  type: ball
+  radius: 0.2
+  center: [0.0, 0.0]
+  degree: 1
+transform:
+  type: polyline
+  points:
+    - [0.0, 0.0]
+    - [1.0, 0.0]
+    - [1.0, 1.0]
+    - [0.0, 1.0]
+"""
+        
+        func = stf.parse_space_time_function_from_string_2d(yaml_content)
+        assert func is not None
+        
+        pos = [0.5, 0.0]
+        t = 0.25
+        value = func.value(pos, t)
+        assert abs(value) < float('inf')
+
+    def test_polybezier_backward_compatibility(self):
+        """Test that inline points specification still works for polybezier."""
+        yaml_content = """
+type: sweep
+dimension: 3
+primitive:
+  type: ball
+  radius: 0.15
+  center: [0.0, 0.0, 0.0]
+  degree: 1
+transform:
+  type: polybezier
+  control_points:
+    - [0.0, 0.0, 0.0]
+    - [0.5, 0.0, 0.0]
+    - [0.5, 0.5, 0.0]
+    - [1.0, 0.5, 0.0]
+  follow_tangent: true
+"""
+        
+        func = stf.parse_space_time_function_from_string(yaml_content)
+        assert func is not None
+        
+        pos = [0.5, 0.25, 0.0]
+        t = 0.5
+        value = func.value(pos, t)
+        assert abs(value) < float('inf')
+
 
 if __name__ == "__main__":
     pytest.main([__file__])

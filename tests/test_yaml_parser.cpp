@@ -937,4 +937,260 @@ transform:
     std::filesystem::remove_all("test_data");
 }
 
+TEST_CASE("YamlParser can load polyline points from XYZ file", "[yaml_parser]") {
+    // Create test directory and XYZ file
+    std::filesystem::create_directory("test_polyline_data");
+    
+    std::string points_content_2d = "2\n0.0 0.0\n1.0 0.0\n1.0 1.0\n0.0 1.0\n";
+    std::string points_content_3d = "3\n0.0 0.0 0.0\n1.0 0.0 0.0\n1.0 1.0 0.0\n0.0 1.0 1.0\n";
+    
+    std::ofstream points_file_2d("test_polyline_data/points_2d.xyz");
+    points_file_2d << points_content_2d;
+    points_file_2d.close();
+    
+    std::ofstream points_file_3d("test_polyline_data/points_3d.xyz");
+    points_file_3d << points_content_3d;
+    points_file_3d.close();
+    
+    SECTION("Polyline 2D from XYZ file") {
+        std::string yaml_content = R"(
+type: sweep
+dimension: 2
+primitive:
+  type: ball
+  radius: 0.2
+  center: [0.0, 0.0]
+  degree: 1
+transform:
+  type: polyline
+  points_file: points_2d.xyz
+)";
+        
+        std::ofstream yaml_file("test_polyline_data/test_2d.yaml");
+        yaml_file << yaml_content;
+        yaml_file.close();
+        
+        auto func = YamlParser<2>::parse_from_file("test_polyline_data/test_2d.yaml");
+        REQUIRE(func != nullptr);
+        
+        // Test function evaluation
+        std::array<Scalar, 2> pos = {0.5, 0.0};
+        Scalar t = 0.25;
+        
+        Scalar value = func->value(pos, t);
+        REQUIRE(std::isfinite(value));
+    }
+    
+    SECTION("Polyline 3D from XYZ file") {
+        std::string yaml_content = R"(
+type: sweep
+dimension: 3
+primitive:
+  type: ball
+  radius: 0.2
+  center: [0.0, 0.0, 0.0]
+  degree: 1
+transform:
+  type: polyline
+  points_file: points_3d.xyz
+)";
+        
+        std::ofstream yaml_file("test_polyline_data/test_3d.yaml");
+        yaml_file << yaml_content;
+        yaml_file.close();
+        
+        auto func = YamlParser<3>::parse_from_file("test_polyline_data/test_3d.yaml");
+        REQUIRE(func != nullptr);
+        
+        // Test function evaluation
+        std::array<Scalar, 3> pos = {0.5, 0.0, 0.0};
+        Scalar t = 0.25;
+        
+        Scalar value = func->value(pos, t);
+        REQUIRE(std::isfinite(value));
+    }
+    
+    SECTION("Polyline with dimension mismatch should throw error") {
+        std::string yaml_content = R"(
+type: sweep
+dimension: 3
+primitive:
+  type: ball
+  radius: 0.2
+  center: [0.0, 0.0, 0.0]
+  degree: 1
+transform:
+  type: polyline
+  points_file: points_2d.xyz
+)";
+        
+        std::ofstream yaml_file("test_polyline_data/test_mismatch.yaml");
+        yaml_file << yaml_content;
+        yaml_file.close();
+        
+        REQUIRE_THROWS_AS(YamlParser<3>::parse_from_file("test_polyline_data/test_mismatch.yaml"), YamlParseError);
+    }
+    
+    // Clean up
+    std::filesystem::remove("test_polyline_data/points_2d.xyz");
+    std::filesystem::remove("test_polyline_data/points_3d.xyz");
+    std::filesystem::remove("test_polyline_data/test_2d.yaml");
+    std::filesystem::remove("test_polyline_data/test_3d.yaml");
+    std::filesystem::remove("test_polyline_data/test_mismatch.yaml");
+    std::filesystem::remove_all("test_polyline_data");
+}
+
+TEST_CASE("YamlParser can load polybezier points from XYZ file", "[yaml_parser]") {
+    // Create test directory and XYZ files
+    std::filesystem::create_directory("test_bezier_data");
+    
+    // Control points for a simple cubic Bezier curve (4 points)
+    std::string control_points_content = "3\n0.0 0.0 0.0\n0.5 0.0 0.0\n0.5 0.5 0.0\n1.0 0.5 0.0\n";
+    
+    // Sample points for curve fitting
+    std::string sample_points_content = "3\n0.0 0.0 0.0\n0.25 0.1 0.0\n0.5 0.3 0.0\n0.75 0.4 0.0\n1.0 0.5 0.0\n";
+    
+    std::ofstream control_file("test_bezier_data/control_points.xyz");
+    control_file << control_points_content;
+    control_file.close();
+    
+    std::ofstream sample_file("test_bezier_data/sample_points.xyz");
+    sample_file << sample_points_content;
+    sample_file.close();
+    
+    SECTION("PolyBezier from control points file") {
+        std::string yaml_content = R"(
+type: sweep
+dimension: 3
+primitive:
+  type: ball
+  radius: 0.15
+  center: [0.0, 0.0, 0.0]
+  degree: 1
+transform:
+  type: polybezier
+  control_points_file: control_points.xyz
+  follow_tangent: true
+)";
+        
+        std::ofstream yaml_file("test_bezier_data/test_control.yaml");
+        yaml_file << yaml_content;
+        yaml_file.close();
+        
+        auto func = YamlParser<3>::parse_from_file("test_bezier_data/test_control.yaml");
+        REQUIRE(func != nullptr);
+        
+        // Test function evaluation
+        std::array<Scalar, 3> pos = {0.5, 0.25, 0.0};
+        Scalar t = 0.5;
+        
+        Scalar value = func->value(pos, t);
+        REQUIRE(std::isfinite(value));
+    }
+    
+    SECTION("PolyBezier from sample points file") {
+        std::string yaml_content = R"(
+type: sweep
+dimension: 3
+primitive:
+  type: ball
+  radius: 0.1
+  center: [0.0, 0.0, 0.0]
+  degree: 1
+transform:
+  type: polybezier
+  sample_points_file: sample_points.xyz
+  follow_tangent: false
+)";
+        
+        std::ofstream yaml_file("test_bezier_data/test_sample.yaml");
+        yaml_file << yaml_content;
+        yaml_file.close();
+        
+        auto func = YamlParser<3>::parse_from_file("test_bezier_data/test_sample.yaml");
+        REQUIRE(func != nullptr);
+        
+        // Test function evaluation
+        std::array<Scalar, 3> pos = {0.5, 0.3, 0.0};
+        Scalar t = 0.5;
+        
+        Scalar value = func->value(pos, t);
+        REQUIRE(std::isfinite(value));
+    }
+    
+    SECTION("PolyBezier with insufficient control points should throw error") {
+        // Create file with only 3 control points (need at least 4)
+        std::string insufficient_points = "3\n0.0 0.0 0.0\n0.5 0.0 0.0\n1.0 0.5 0.0\n";
+        
+        std::ofstream insufficient_file("test_bezier_data/insufficient.xyz");
+        insufficient_file << insufficient_points;
+        insufficient_file.close();
+        
+        std::string yaml_content = R"(
+type: sweep
+dimension: 3
+primitive:
+  type: ball
+  radius: 0.1
+  center: [0.0, 0.0, 0.0]
+  degree: 1
+transform:
+  type: polybezier
+  control_points_file: insufficient.xyz
+)";
+        
+        std::ofstream yaml_file("test_bezier_data/test_insufficient.yaml");
+        yaml_file << yaml_content;
+        yaml_file.close();
+        
+        REQUIRE_THROWS_AS(YamlParser<3>::parse_from_file("test_bezier_data/test_insufficient.yaml"), YamlParseError);
+        
+        std::filesystem::remove("test_bezier_data/insufficient.xyz");
+        std::filesystem::remove("test_bezier_data/test_insufficient.yaml");
+    }
+    
+    // Clean up
+    std::filesystem::remove("test_bezier_data/control_points.xyz");
+    std::filesystem::remove("test_bezier_data/sample_points.xyz");
+    std::filesystem::remove("test_bezier_data/test_control.yaml");
+    std::filesystem::remove("test_bezier_data/test_sample.yaml");
+    std::filesystem::remove_all("test_bezier_data");
+}
+
+TEST_CASE("YamlParser handles missing XYZ files gracefully", "[yaml_parser]") {
+    SECTION("Missing polyline points file") {
+        std::string yaml_content = R"(
+type: sweep
+dimension: 2
+primitive:
+  type: ball
+  radius: 0.2
+  center: [0.0, 0.0]
+  degree: 1
+transform:
+  type: polyline
+  points_file: nonexistent.xyz
+)";
+
+        REQUIRE_THROWS_AS(YamlParser<2>::parse_from_string(yaml_content), YamlParseError);
+    }
+    
+    SECTION("Missing polybezier control points file") {
+        std::string yaml_content = R"(
+type: sweep
+dimension: 3
+primitive:
+  type: ball
+  radius: 0.1
+  center: [0.0, 0.0, 0.0]
+  degree: 1
+transform:
+  type: polybezier
+  control_points_file: nonexistent.xyz
+)";
+
+        REQUIRE_THROWS_AS(YamlParser<3>::parse_from_string(yaml_content), YamlParseError);
+    }
+}
+
 #endif

@@ -1,337 +1,445 @@
-# YAML Parser for Space-Time Functions
+# YAML Specification for Space-Time Functions
 
-The STF library now supports parsing space-time functions from YAML files, making it easy to define complex space-time functions declaratively without writing C++ code. The parser supports various primitives (ball, capsule, torus) and transforms including basic transforms (translation, rotation, scale), path-based transforms (polyline, polybezier), and transform composition.
+This document describes the YAML format for defining space-time functions in the STF library.
 
-## Basic Usage
+## Table of Contents
 
-```cpp
-#include <stf/stf.h>
+1. [Basic Structure](#basic-structure)
+2. [Space-Time Function Types](#space-time-function-types)
+3. [Primitive Types](#primitive-types)
+4. [Transform Types](#transform-types)
+5. [External File Support](#external-file-support)
+6. [Examples](#examples)
 
-// Parse from file
-auto func = stf::parse_space_time_function_from_file<3>("my_function.yaml");
+## Basic Structure
 
-// Parse from string
-std::string yaml_content = "...";
-auto func = stf::parse_space_time_function_from_string<3>(yaml_content);
+All YAML files must specify the following top-level fields:
 
-// Use the function
-std::array<stf::Scalar, 3> pos = {1.0, 0.0, 0.0};
-stf::Scalar t = 0.5;
-auto value = func->value(pos, t);
-auto gradient = func->gradient(pos, t);
+```yaml
+type: <function_type>
+dimension: <2|3>
+# Additional fields depend on the function type
 ```
 
-## YAML Format
+### Required Fields
 
-### Basic Structure
-
-All YAML files must specify:
-- `type`: The type of space-time function
+- `type`: The type of space-time function (see [Space-Time Function Types](#space-time-function-types))
 - `dimension`: The spatial dimension (2 or 3)
 
-### Sweep Functions
+## Space-Time Function Types
 
-Sweep functions are created by sweeping a primitive shape through space using a transform:
+### Sweep Function
+
+Creates a space-time function by sweeping a primitive along a transform path.
 
 ```yaml
 type: sweep
-dimension: 3
+dimension: <2|3>
 primitive:
-  type: ball
-  radius: 0.5
-  center: [0.0, 0.0, 0.0]
-  degree: 1
+  # Primitive definition (see Primitive Types)
 transform:
-  type: translation
-  vector: [1.0, 0.0, 0.0]
+  # Transform definition (see Transform Types)
 ```
 
-## Supported Primitives
+### Offset Function
 
-### Ball (2D/3D)
+Adds a time-dependent offset to another space-time function.
+
 ```yaml
-primitive:
-  type: ball
-  radius: 0.5
-  center: [0.0, 0.0, 0.0]  # [x, y] for 2D, [x, y, z] for 3D
-  degree: 1                # Distance function degree
+type: offset
+dimension: <2|3>
+base_function:
+  # Nested space-time function definition
+offset: <scalar>              # Constant offset value
+offset_derivative: <scalar>   # Constant offset derivative
+```
+
+### Union Function
+
+Combines multiple space-time functions using smooth union.
+
+```yaml
+type: union
+dimension: <2|3>
+functions:
+  - # First space-time function
+  - # Second space-time function
+  # ... additional functions
+```
+
+### Interpolate Function
+
+Linearly interpolates between two space-time functions over time.
+
+```yaml
+type: interpolate
+dimension: <2|3>
+function1:
+  # First space-time function (at t=0)
+function2:
+  # Second space-time function (at t=1)
+interpolation_type: <linear|smooth|cosine>  # Optional, defaults to linear
+```
+
+## Primitive Types
+
+### Ball
+
+A sphere (3D) or circle (2D) primitive.
+
+```yaml
+type: ball
+radius: <scalar>
+center: [<x>, <y>]           # 2D
+center: [<x>, <y>, <z>]      # 3D
+degree: <integer>            # Optional, defaults to 1
 ```
 
 ### Capsule (3D only)
+
+A capsule primitive defined by two endpoints and a radius.
+
 ```yaml
-primitive:
-  type: capsule
-  radius: 0.2
-  start: [0.0, 0.0, 0.0]   # Start point of capsule axis
-  end: [0.0, 0.0, 1.0]     # End point of capsule axis
+type: capsule
+start: [<x>, <y>, <z>]
+end: [<x>, <y>, <z>]
+radius: <scalar>
 ```
 
 ### Torus (3D only)
+
+A torus primitive with major and minor radii.
+
 ```yaml
-primitive:
-  type: torus
-  major_radius: 1.0        # Distance from center to tube center
-  minor_radius: 0.3        # Tube radius
-  center: [0.0, 0.0, 0.0]
+type: torus
+major_radius: <scalar>
+minor_radius: <scalar>
+center: [<x>, <y>, <z>]
 ```
 
-## Supported Transforms
+### Duchon (3D only)
+
+A Duchon interpolant loaded from external files.
+
+```yaml
+type: duchon
+samples_file: <path>         # Path to .xyz file with sample points
+coeffs_file: <path>          # Path to coefficients file
+center: [<x>, <y>, <z>]      # Optional, defaults to [0, 0, 0]
+radius: <scalar>             # Optional, defaults to 1.0
+positive_inside: <boolean>   # Optional, defaults to false
+```
+
+## Transform Types
 
 ### Translation
+
+Translates along a vector over time.
+
 ```yaml
-transform:
-  type: translation
-  vector: [1.0, 0.0, 0.0]  # Translation vector per unit time
+type: translation
+vector: [<x>, <y>]           # 2D
+vector: [<x>, <y>, <z>]      # 3D
 ```
 
 ### Scale
+
+Scales by factors over time.
+
 ```yaml
-transform:
-  type: scale
-  factors: [2.0, 1.0, 1.0] # Scale factors per dimension
-  center: [0.0, 0.0, 0.0]  # Optional: center of scaling (default: origin)
+type: scale
+factors: [<fx>, <fy>]        # 2D
+factors: [<fx>, <fy>, <fz>]  # 3D
+center: [<x>, <y>]           # Optional, defaults to origin
+center: [<x>, <y>, <z>]      # Optional, defaults to origin
 ```
 
 ### Rotation
 
-For 2D:
+Rotates around an axis (3D) or point (2D) over time.
+
 ```yaml
-transform:
-  type: rotation
-  angle: 90.0              # Total rotation in degrees
-  center: [0.0, 0.0]       # Optional: center of rotation
+# 2D rotation
+type: rotation
+angle: <scalar>              # Rotation angle in radians
+center: [<x>, <y>]           # Optional, defaults to origin
+
+# 3D rotation
+type: rotation
+angle: <scalar>              # Rotation angle in radians
+axis: [<x>, <y>, <z>]        # Rotation axis (normalized)
+center: [<x>, <y>, <z>]      # Optional, defaults to origin
 ```
 
-For 3D:
-```yaml
-transform:
-  type: rotation
-  axis: [0.0, 0.0, 1.0]    # Rotation axis
-  angle: 90.0              # Total rotation in degrees
-  center: [0.0, 0.0, 0.0]  # Optional: center of rotation
-```
+### Compose
 
-### Compose (Multiple Transforms)
+Composes multiple transforms in sequence.
+
 ```yaml
-transform:
-  type: compose
-  transforms:
-    - type: translation
-      vector: [1.0, 0.0, 0.0]
-    - type: rotation
-      axis: [0.0, 0.0, 1.0]
-      angle: 180.0
-      center: [0.0, 0.0, 0.0]
+type: compose
+transforms:
+  - # First transform
+  - # Second transform
+  # ... additional transforms
 ```
 
 ### Polyline
-Creates piecewise linear paths through a sequence of points:
+
+Moves along a polyline path defined by connected line segments.
+
+#### Inline Points
+
 ```yaml
-transform:
-  type: polyline
-  points:
-    - [0.0, 0.0, 0.0]    # First point
-    - [1.0, 0.0, 0.0]    # Second point
-    - [1.0, 1.0, 0.0]    # Third point
-    - [1.0, 1.0, 1.0]    # Fourth point
-    # ... more points
+type: polyline
+points:
+  - [<x1>, <y1>]             # 2D
+  - [<x2>, <y2>]
+  # ... additional points (minimum 2 required)
+
+# OR for 3D
+points:
+  - [<x1>, <y1>, <z1>]       # 3D
+  - [<x2>, <y2>, <z2>]
+  # ... additional points
 ```
 
-**Requirements:**
-- Minimum 2 points required
-- Each point must have correct number of coordinates for the dimension
-- Uses Bishop frames for consistent orientation along the path
+#### External XYZ File
+
+```yaml
+type: polyline
+points_file: <path>          # Path to XYZ file containing points
+```
 
 ### PolyBezier
-Creates smooth curved paths using piecewise cubic Bezier curves.
 
-**Option 1: Direct control points specification**
+Moves along a piecewise cubic Bézier curve.
+
+#### Control Points (Inline)
+
 ```yaml
-transform:
-  type: polybezier
-  control_points:
-    # First Bezier segment (4 control points)
-    - [0.0, 0.0, 0.0]    # P0 - start point
-    - [0.5, 0.0, 0.0]    # P1 - control point
-    - [0.5, 0.5, 0.0]    # P2 - control point
-    - [1.0, 0.5, 0.0]    # P3 - end point
-    # Second Bezier segment (3 more points, P3 is shared)
-    - [1.5, 0.5, 0.0]    # P4 - control point
-    - [1.5, 1.0, 0.5]    # P5 - control point
-    - [1.0, 1.0, 1.0]    # P6 - end point
-  follow_tangent: true   # Optional, default: true
+type: polybezier
+control_points:
+  - [<x1>, <y1>, <z1>]       # First control point
+  - [<x2>, <y2>, <z2>]       # First control handle
+  - [<x3>, <y3>, <z3>]       # Second control handle
+  - [<x4>, <y4>, <z4>]       # Second control point
+  # ... additional control points (must be (n*3)+1 total)
+follow_tangent: <boolean>    # Optional, defaults to true
 ```
 
-**Option 2: Generate from sample points**
+#### Control Points (External File)
+
 ```yaml
-transform:
-  type: polybezier
-  sample_points:
-    - [0.0, 0.0, 0.0]    # Point 1 (curve passes through)
-    - [1.0, 0.0, 0.5]    # Point 2 (curve passes through)
-    - [2.0, 1.0, 0.5]    # Point 3 (curve passes through)
-    - [2.5, 2.0, 0.0]    # Point 4 (curve passes through)
-    # ... more sample points
-  follow_tangent: true   # Optional, default: true
+type: polybezier
+control_points_file: <path>  # Path to XYZ file with control points
+follow_tangent: <boolean>    # Optional, defaults to true
 ```
 
-**Parameters:**
-- `control_points`: Direct Bezier control points (minimum 4, must follow (n×3)+1 pattern)
-- `sample_points`: Points the curve passes through (minimum 3, control points generated automatically)
-- `follow_tangent`: Whether to align coordinate system with curve tangent (default: true)
+#### Sample Points (Inline)
+
+```yaml
+type: polybezier
+sample_points:
+  - [<x1>, <y1>, <z1>]       # Points to fit curve through
+  - [<x2>, <y2>, <z2>]
+  # ... additional sample points (minimum 3 required)
+follow_tangent: <boolean>    # Optional, defaults to true
+```
+
+#### Sample Points (External File)
+
+```yaml
+type: polybezier
+sample_points_file: <path>   # Path to XYZ file with sample points
+follow_tangent: <boolean>    # Optional, defaults to true
+```
+
+## External File Support
+
+The STF YAML parser supports loading point data from external XYZ files for several use cases:
+
+### XYZ File Format
+
+XYZ files follow this format:
+
+```
+<dimension>
+<x1> <y1> [<z1>]
+<x2> <y2> [<z2>]
+...
+<xn> <yn> [<zn>]
+```
+
+**Example 2D XYZ file:**
+```
+2
+0.0 0.0
+1.0 0.0
+1.0 1.0
+0.0 1.0
+```
+
+**Example 3D XYZ file:**
+```
+3
+0.0 0.0 0.0
+1.0 0.0 0.0
+1.0 1.0 0.0
+0.0 1.0 1.0
+```
+
+### Relative Path Resolution
+
+All file paths in YAML are resolved relative to the directory containing the YAML file:
+
+```yaml
+# If this YAML is in /path/to/config.yaml
+type: sweep
+dimension: 3
+primitive:
+  type: duchon
+  samples_file: data/samples.xyz     # Resolves to /path/to/data/samples.xyz
+  coeffs_file: ../shared/coeffs.txt  # Resolves to /path/shared/coeffs.txt
+```
+
+### Supported File Loading
+
+| Transform/Primitive | Field | File Type | Description |
+|-------------------|-------|-----------|-------------|
+| `polyline` | `points_file` | XYZ | Polyline vertex coordinates |
+| `polybezier` | `control_points_file` | XYZ | Bézier control point coordinates |
+| `polybezier` | `sample_points_file` | XYZ | Sample points for curve fitting |
+| `duchon` | `samples_file` | XYZ | 3D sample point coordinates |
+| `duchon` | `coeffs_file` | Text | RBF and affine coefficients |
+
+### Advantages of External Files
+
+1. **Large datasets**: Handle thousands of points without cluttering YAML
+2. **Data reuse**: Share point datasets across multiple configurations
+3. **Tool integration**: Generate points from CAD software, simulations, etc.
+4. **Version control**: Track point data changes separately from configuration
+5. **Performance**: Faster parsing of large point sets
+
+### Error Handling
+
+The parser provides clear error messages for common issues:
+
+- **Missing files**: "Failed to open XYZ file: /path/to/file.xyz"
+- **Dimension mismatch**: "XYZ file dimension (2) does not match expected dimension (3)"
+- **Invalid format**: "No valid points found in XYZ file"
+- **Insufficient points**: "Polyline must have at least 2 points"
 
 ## Examples
 
-### Moving Ball
-A ball that moves along the x-axis:
-```yaml
-type: sweep
-dimension: 3
-primitive:
-  type: ball
-  radius: 0.5
-  center: [0.0, 0.0, 0.0]
-  degree: 1
-transform:
-  type: translation
-  vector: [2.0, 0.0, 0.0]
-```
+### Simple 2D Sweep with Ball
 
-### Rotating Capsule
-A capsule that rotates around the z-axis:
-```yaml
-type: sweep
-dimension: 3
-primitive:
-  type: capsule
-  radius: 0.2
-  start: [1.0, 0.0, -0.5]
-  end: [1.0, 0.0, 0.5]
-transform:
-  type: rotation
-  axis: [0.0, 0.0, 1.0]
-  angle: 360.0
-  center: [0.0, 0.0, 0.0]
-```
-
-### Complex Motion
-A ball with both rotation and translation:
-```yaml
-type: sweep
-dimension: 3
-primitive:
-  type: ball
-  radius: 0.3
-  center: [1.0, 0.0, 0.0]
-  degree: 1
-transform:
-  type: compose
-  transforms:
-    - type: rotation
-      axis: [0.0, 0.0, 1.0]
-      angle: 180.0
-      center: [0.0, 0.0, 0.0]
-    - type: translation
-      vector: [0.0, 0.0, 1.0]
-```
-
-### Polyline Path
-A ball following a piecewise linear path:
-```yaml
-type: sweep
-dimension: 3
-primitive:
-  type: ball
-  radius: 0.2
-  center: [0.0, 0.0, 0.0]
-  degree: 1
-transform:
-  type: polyline
-  points:
-    - [0.0, 0.0, 0.0]    # Start point
-    - [1.0, 0.0, 0.0]    # Move along x-axis
-    - [1.0, 1.0, 0.0]    # Turn along y-axis
-    - [1.0, 1.0, 1.0]    # Move up along z-axis
-    - [0.0, 1.0, 1.0]    # Move back along x-axis
-```
-
-### Smooth Bezier Curve
-A capsule following a smooth curved path:
-```yaml
-type: sweep
-dimension: 3
-primitive:
-  type: capsule
-  radius: 0.1
-  start: [0.0, 0.0, -0.2]
-  end: [0.0, 0.0, 0.2]
-transform:
-  type: polybezier
-  sample_points:
-    - [0.0, 0.0, 0.0]    # Curve passes through these points
-    - [1.0, 0.0, 0.5]
-    - [2.0, 1.0, 0.5]
-    - [2.5, 2.0, 0.0]
-    - [2.0, 3.0, -0.5]
-    - [1.0, 3.5, -0.5]
-    - [0.0, 3.0, 0.0]
-  follow_tangent: true
-```
-
-### 2D Polyline Path
-A 2D circle following a square path:
 ```yaml
 type: sweep
 dimension: 2
 primitive:
   type: ball
-  radius: 0.3
+  radius: 0.5
   center: [0.0, 0.0]
-  degree: 1
+transform:
+  type: translation
+  vector: [1.0, 0.0]
+```
+
+### 3D Polyline from External File
+
+```yaml
+type: sweep
+dimension: 3
+primitive:
+  type: ball
+  radius: 0.2
+  center: [0.0, 0.0, 0.0]
 transform:
   type: polyline
-  points:
-    - [0.0, 0.0]     # Start point
-    - [2.0, 0.0]     # Move right
-    - [2.0, 2.0]     # Move up
-    - [0.0, 2.0]     # Move left
-    - [0.0, 0.0]     # Return to start
+  points_file: data/path_points.xyz
 ```
 
-## Error Handling
+### PolyBezier with Control Points from File
 
-The parser provides detailed error messages for common issues:
-
-- Missing required fields
-- Invalid field types or values
-- Dimension mismatches
-- Unknown primitive or transform types
-- Invalid YAML syntax
-- **Polyline errors**: Too few points (< 2), incorrect point dimensions
-- **PolyBezier errors**: Too few control points (< 4), wrong control point pattern (not (n×3)+1), too few sample points (< 3)
-
-```cpp
-try {
-    auto func = stf::parse_space_time_function_from_file<3>("invalid.yaml");
-} catch (const stf::YamlParseError& e) {
-    std::cerr << "Parse error: " << e.what() << std::endl;
-}
+```yaml
+type: sweep
+dimension: 3
+primitive:
+  type: capsule
+  start: [0.0, 0.0, 0.0]
+  end: [0.0, 0.0, 0.1]
+  radius: 0.05
+transform:
+  type: polybezier
+  control_points_file: data/bezier_controls.xyz
+  follow_tangent: true
 ```
 
-## Limitations
+### Duchon Surface with External Data
 
-- Explicit form functions cannot be defined in YAML (use C++ API for custom functions)
-- Union and offset functions are not yet supported in YAML format
-- Function parameters cannot be expressions (only literal values)
-
-## Building with YAML Support
-
-The YAML parser requires yaml-cpp. It's automatically included when building the library:
-
-```bash
-mkdir build && cd build
-cmake .. -DSTF_BUILD_TESTS=ON
-make
+```yaml
+type: sweep
+dimension: 3
+primitive:
+  type: duchon
+  samples_file: data/surface_samples.xyz
+  coeffs_file: data/surface_coeffs.txt
+  center: [0.0, 0.0, 0.0]
+  radius: 2.0
+  positive_inside: false
+transform:
+  type: scale
+  factors: [1.0, 1.0, 2.0]
 ```
 
-The yaml-cpp dependency is handled automatically by the CMake configuration.
+### Complex Union with Multiple Functions
+
+```yaml
+type: union
+dimension: 3
+functions:
+  - type: sweep
+    primitive:
+      type: ball
+      radius: 0.3
+      center: [0.0, 0.0, 0.0]
+    transform:
+      type: translation
+      vector: [1.0, 0.0, 0.0]
+  - type: sweep
+    primitive:
+      type: torus
+      major_radius: 0.8
+      minor_radius: 0.2
+      center: [0.0, 0.0, 0.0]
+    transform:
+      type: rotation
+      angle: 1.57
+      axis: [0.0, 1.0, 0.0]
+```
+
+### Interpolation Between Two Functions
+
+```yaml
+type: interpolate
+dimension: 2
+function1:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.2
+    center: [0.0, 0.0]
+  transform:
+    type: translation
+    vector: [1.0, 0.0]
+function2:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.4
+    center: [0.0, 0.0]
+  transform:
+    type: translation
+    vector: [0.0, 1.0]
+interpolation_type: smooth
+```

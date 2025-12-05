@@ -155,7 +155,7 @@ private:
     static std::unique_ptr<ImplicitFunction<dim>> parse_primitive(
         const YAML::Node& node, Context<dim>& context, const std::string& yaml_file_dir = "");
     static std::unique_ptr<Transform<dim>> parse_transform(
-        const YAML::Node& node, Context<dim>& context);
+        const YAML::Node& node, Context<dim>& context, const std::string& yaml_file_dir = "");
 
     // Specific parsers for different space-time function types
     static std::unique_ptr<SpaceTimeFunction<dim>> parse_explicit_form(
@@ -180,9 +180,9 @@ private:
     static std::unique_ptr<Transform<dim>> parse_scale(const YAML::Node& node);
     static std::unique_ptr<Transform<dim>> parse_rotation(const YAML::Node& node);
     static std::unique_ptr<Transform<dim>> parse_compose(
-        const YAML::Node& node, Context<dim>& context);
-    static std::unique_ptr<Transform<dim>> parse_polyline(const YAML::Node& node);
-    static std::unique_ptr<Transform<dim>> parse_polybezier(const YAML::Node& node);
+        const YAML::Node& node, Context<dim>& context, const std::string& yaml_file_dir = "");
+    static std::unique_ptr<Transform<dim>> parse_polyline(const YAML::Node& node, const std::string& yaml_file_dir = "");
+    static std::unique_ptr<Transform<dim>> parse_polybezier(const YAML::Node& node, const std::string& yaml_file_dir = "");
 
     // Utility functions
     static std::array<Scalar, dim> parse_array(
@@ -197,6 +197,10 @@ private:
 
     static void validate_dimension(const YAML::Node& node);
     static void validate_required_field(const YAML::Node& node, const std::string& field_name);
+    
+    // Helper function to load points from XYZ file
+    static std::vector<std::array<Scalar, dim>> load_points_from_xyz(
+        const std::string& file_path, const std::string& yaml_file_dir = "");
 };
 
 // Convenience functions for common use cases
