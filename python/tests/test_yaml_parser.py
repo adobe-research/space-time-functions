@@ -412,6 +412,224 @@ transform:
         with pytest.raises(stf.YamlParseError):
             stf.parse_space_time_function_from_string(yaml_content)
 
+    def test_interpolate_function_linear(self):
+        """Test parsing interpolate function with linear interpolation."""
+        yaml_content = """
+type: interpolate
+dimension: 3
+function1:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.3
+    center: [0.0, 0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [1.0, 0.0, 0.0]
+function2:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.5
+    center: [0.0, 0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [0.0, 1.0, 0.0]
+interpolation_type: linear
+"""
+        
+        func = stf.parse_space_time_function_from_string(yaml_content)
+        assert func is not None
+        
+        # Test function evaluation at different interpolation points
+        pos = [0.0, 0.0, 0.0]
+        
+        # At t=0, should be closer to function1
+        value_0 = func.value(pos, 0.0)
+        assert abs(value_0) < float('inf')
+        
+        # At t=1, should be closer to function2
+        value_1 = func.value(pos, 1.0)
+        assert abs(value_1) < float('inf')
+        
+        # At t=0.5, should be interpolated
+        value_half = func.value(pos, 0.5)
+        assert abs(value_half) < float('inf')
+
+    def test_interpolate_function_smooth(self):
+        """Test parsing interpolate function with smooth interpolation."""
+        yaml_content = """
+type: interpolate
+dimension: 2
+function1:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.2
+    center: [0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [1.0, 0.0]
+function2:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.4
+    center: [0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [0.0, 1.0]
+interpolation_type: smooth
+"""
+        
+        func = stf.parse_space_time_function_from_string_2d(yaml_content)
+        assert func is not None
+        
+        # Test function evaluation
+        pos = [0.5, 0.5]
+        t = 0.5
+        value = func.value(pos, t)
+        assert abs(value) < float('inf')
+        
+        # Test gradient computation
+        gradient = func.gradient(pos, t)
+        assert len(gradient) == 3  # [df/dx, df/dy, df/dt]
+        assert all(abs(g) < float('inf') for g in gradient)
+
+    def test_interpolate_function_cosine(self):
+        """Test parsing interpolate function with cosine interpolation."""
+        yaml_content = """
+type: interpolate
+dimension: 3
+function1:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.3
+    center: [1.0, 0.0, 0.0]
+    degree: 1
+  transform:
+    type: scale
+    factors: [1.0, 1.0, 1.0]
+    center: [0.0, 0.0, 0.0]
+function2:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.3
+    center: [-1.0, 0.0, 0.0]
+    degree: 1
+  transform:
+    type: scale
+    factors: [2.0, 2.0, 2.0]
+    center: [0.0, 0.0, 0.0]
+interpolation_type: cosine
+"""
+        
+        func = stf.parse_space_time_function_from_string(yaml_content)
+        assert func is not None
+        
+        # Test function evaluation
+        pos = [0.0, 0.0, 0.0]
+        t = 0.25
+        value = func.value(pos, t)
+        assert abs(value) < float('inf')
+        
+        # Test time derivative
+        time_deriv = func.time_derivative(pos, t)
+        assert abs(time_deriv) < float('inf')
+
+    def test_interpolate_function_default_linear(self):
+        """Test parsing interpolate function with default linear interpolation."""
+        yaml_content = """
+type: interpolate
+dimension: 3
+function1:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.2
+    center: [0.0, 0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [1.0, 0.0, 0.0]
+function2:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.2
+    center: [0.0, 0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [-1.0, 0.0, 0.0]
+"""
+        
+        func = stf.parse_space_time_function_from_string(yaml_content)
+        assert func is not None
+        
+        # Test function evaluation
+        pos = [0.0, 0.0, 0.0]
+        t = 0.5
+        value = func.value(pos, t)
+        assert abs(value) < float('inf')
+
+    def test_interpolate_function_error_handling(self):
+        """Test error handling for invalid interpolate function."""
+        yaml_content = """
+type: interpolate
+dimension: 3
+function1:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.2
+    center: [0.0, 0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [1.0, 0.0, 0.0]
+"""
+        
+        with pytest.raises(stf.YamlParseError):
+            stf.parse_space_time_function_from_string(yaml_content)
+
+    def test_interpolate_function_unknown_type_error(self):
+        """Test error handling for unknown interpolation type."""
+        yaml_content = """
+type: interpolate
+dimension: 3
+function1:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.2
+    center: [0.0, 0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [1.0, 0.0, 0.0]
+function2:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.2
+    center: [0.0, 0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [-1.0, 0.0, 0.0]
+interpolation_type: unknown_type
+"""
+        
+        with pytest.raises(stf.YamlParseError):
+            stf.parse_space_time_function_from_string(yaml_content)
+
 
 if __name__ == "__main__":
     pytest.main([__file__])

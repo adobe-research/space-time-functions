@@ -469,4 +469,227 @@ transform:
     REQUIRE_THROWS_AS(YamlParser<3>::parse_from_string(yaml_content), YamlParseError);
 }
 
+TEST_CASE("YamlParser can parse interpolate function with linear interpolation", "[yaml_parser]") {
+    std::string yaml_content = R"(
+type: interpolate
+dimension: 3
+function1:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.3
+    center: [0.0, 0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [1.0, 0.0, 0.0]
+function2:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.5
+    center: [0.0, 0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [0.0, 1.0, 0.0]
+interpolation_type: linear
+)";
+
+    auto func = YamlParser<3>::parse_from_string(yaml_content);
+    REQUIRE(func != nullptr);
+    
+    // Test function evaluation at different interpolation points
+    std::array<Scalar, 3> pos = {0.0, 0.0, 0.0};
+    
+    // At t=0, should be closer to function1
+    Scalar value_0 = func->value(pos, 0.0);
+    REQUIRE(std::isfinite(value_0));
+    
+    // At t=1, should be closer to function2
+    Scalar value_1 = func->value(pos, 1.0);
+    REQUIRE(std::isfinite(value_1));
+    
+    // At t=0.5, should be interpolated
+    Scalar value_half = func->value(pos, 0.5);
+    REQUIRE(std::isfinite(value_half));
+}
+
+TEST_CASE("YamlParser can parse interpolate function with smooth interpolation", "[yaml_parser]") {
+    std::string yaml_content = R"(
+type: interpolate
+dimension: 2
+function1:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.2
+    center: [0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [1.0, 0.0]
+function2:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.4
+    center: [0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [0.0, 1.0]
+interpolation_type: smooth
+)";
+
+    auto func = YamlParser<2>::parse_from_string(yaml_content);
+    REQUIRE(func != nullptr);
+    
+    // Test function evaluation
+    std::array<Scalar, 2> pos = {0.5, 0.5};
+    Scalar t = 0.5;
+    
+    Scalar value = func->value(pos, t);
+    REQUIRE(std::isfinite(value));
+    
+    // Test gradient computation
+    auto gradient = func->gradient(pos, t);
+    REQUIRE(gradient.size() == 3); // [df/dx, df/dy, df/dt]
+    REQUIRE(std::isfinite(gradient[0]));
+    REQUIRE(std::isfinite(gradient[1]));
+    REQUIRE(std::isfinite(gradient[2]));
+}
+
+TEST_CASE("YamlParser can parse interpolate function with cosine interpolation", "[yaml_parser]") {
+    std::string yaml_content = R"(
+type: interpolate
+dimension: 3
+function1:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.3
+    center: [1.0, 0.0, 0.0]
+    degree: 1
+  transform:
+    type: scale
+    factors: [1.0, 1.0, 1.0]
+    center: [0.0, 0.0, 0.0]
+function2:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.3
+    center: [-1.0, 0.0, 0.0]
+    degree: 1
+  transform:
+    type: scale
+    factors: [2.0, 2.0, 2.0]
+    center: [0.0, 0.0, 0.0]
+interpolation_type: cosine
+)";
+
+    auto func = YamlParser<3>::parse_from_string(yaml_content);
+    REQUIRE(func != nullptr);
+    
+    // Test function evaluation
+    std::array<Scalar, 3> pos = {0.0, 0.0, 0.0};
+    Scalar t = 0.25;
+    
+    Scalar value = func->value(pos, t);
+    REQUIRE(std::isfinite(value));
+    
+    // Test time derivative
+    Scalar time_deriv = func->time_derivative(pos, t);
+    REQUIRE(std::isfinite(time_deriv));
+}
+
+TEST_CASE("YamlParser can parse interpolate function with default linear interpolation", "[yaml_parser]") {
+    std::string yaml_content = R"(
+type: interpolate
+dimension: 3
+function1:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.2
+    center: [0.0, 0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [1.0, 0.0, 0.0]
+function2:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.2
+    center: [0.0, 0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [-1.0, 0.0, 0.0]
+# No interpolation_type specified - should default to linear
+)";
+
+    auto func = YamlParser<3>::parse_from_string(yaml_content);
+    REQUIRE(func != nullptr);
+    
+    // Test function evaluation
+    std::array<Scalar, 3> pos = {0.0, 0.0, 0.0};
+    Scalar t = 0.5;
+    
+    Scalar value = func->value(pos, t);
+    REQUIRE(std::isfinite(value));
+}
+
+TEST_CASE("YamlParser throws error for interpolate function with missing functions", "[yaml_parser]") {
+    std::string yaml_content = R"(
+type: interpolate
+dimension: 3
+function1:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.2
+    center: [0.0, 0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [1.0, 0.0, 0.0]
+# Missing function2 - should fail
+)";
+
+    REQUIRE_THROWS_AS(YamlParser<3>::parse_from_string(yaml_content), YamlParseError);
+}
+
+TEST_CASE("YamlParser throws error for interpolate function with unknown interpolation type", "[yaml_parser]") {
+    std::string yaml_content = R"(
+type: interpolate
+dimension: 3
+function1:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.2
+    center: [0.0, 0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [1.0, 0.0, 0.0]
+function2:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.2
+    center: [0.0, 0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [-1.0, 0.0, 0.0]
+interpolation_type: unknown_type
+)";
+
+    REQUIRE_THROWS_AS(YamlParser<3>::parse_from_string(yaml_content), YamlParseError);
+}
+
 #endif

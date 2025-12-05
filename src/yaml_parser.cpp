@@ -55,6 +55,8 @@ std::unique_ptr<SpaceTimeFunction<dim>> YamlParser<dim>::parse_from_node(const Y
         function = parse_offset_function(node, *context);
     } else if (type == "union") {
         function = parse_union_function(node, *context);
+    } else if (type == "interpolate") {
+        function = parse_interpolate_function(node, *context);
     } else {
         throw YamlParseError("Unknown space-time function type: " + type);
     }
@@ -395,6 +397,63 @@ std::unique_ptr<Transform<dim>> YamlParser<dim>::parse_polybezier(const YAML::No
     } else {
         throw YamlParseError("PolyBezier requires either 'control_points' or 'sample_points' field");
     }
+}
+
+template <int dim>
+std::unique_ptr<SpaceTimeFunction<dim>> YamlParser<dim>::parse_interpolate_function(const YAML::Node& node, Context<dim>& context) {
+    validate_required_field(node, "function1");
+    validate_required_field(node, "function2");
+    
+    // Parse the two functions to interpolate between
+    auto function1 = parse_from_node(node["function1"]);
+    auto function2 = parse_from_node(node["function2"]);
+    
+    // Store the functions and get raw pointers
+    auto* function1_ptr = context.add_function(std::move(function1));
+    auto* function2_ptr = context.add_function(std::move(function2));
+    
+    // Parse interpolation type (optional, default is linear)
+    std::string interpolation_type = "linear";
+    if (node["interpolation_type"]) {
+        interpolation_type = parse_string(node, "interpolation_type");
+    }
+    
+    // Create interpolation functions based on type
+    std::function<Scalar(Scalar)> interpolation_func;
+    std::function<Scalar(Scalar)> interpolation_derivative;
+    
+    if (interpolation_type == "linear") {
+        interpolation_func = [](Scalar t) { return t; };
+        interpolation_derivative = [](Scalar t) { return 1.0; };
+    } else if (interpolation_type == "smooth") {
+        // Smooth step interpolation: 3t² - 2t³
+        interpolation_func = [](Scalar t) { return 3 * t * t - 2 * t * t * t; };
+        interpolation_derivative = [](Scalar t) { return 6 * t - 6 * t * t; };
+    } else if (interpolation_type == "smoother") {
+        // Smoother step interpolation: 6t⁵ - 15t⁴ + 10t³
+        interpolation_func = [](Scalar t) { 
+            return 6 * t * t * t * t * t - 15 * t * t * t * t + 10 * t * t * t; 
+        };
+        interpolation_derivative = [](Scalar t) { 
+            return 30 * t * t * t * t - 60 * t * t * t + 30 * t * t; 
+        };
+    } else if (interpolation_type == "cosine") {
+        // Cosine interpolation: (1 - cos(πt)) / 2
+        interpolation_func = [](Scalar t) { 
+            return (1.0 - std::cos(M_PI * t)) / 2.0; 
+        };
+        interpolation_derivative = [](Scalar t) { 
+            return M_PI * std::sin(M_PI * t) / 2.0; 
+        };
+    } else if (interpolation_type == "custom") {
+        // For custom interpolation, we would need to parse mathematical expressions
+        // For now, throw an error suggesting this isn't supported
+        throw YamlParseError("Custom interpolation functions are not yet supported in YAML. Use 'linear', 'smooth', 'smoother', or 'cosine'.");
+    } else {
+        throw YamlParseError("Unknown interpolation type: " + interpolation_type + ". Supported types: 'linear', 'smooth', 'smoother', 'cosine'");
+    }
+    
+    return std::make_unique<InterpolateFunction<dim>>(*function1_ptr, *function2_ptr, interpolation_func, interpolation_derivative);
 }
 
 // Utility function implementations

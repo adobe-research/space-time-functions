@@ -164,6 +164,8 @@ private:
         const YAML::Node& node, Context<dim>& context);
     static std::unique_ptr<SpaceTimeFunction<dim>> parse_union_function(
         const YAML::Node& node, Context<dim>& context);
+    static std::unique_ptr<SpaceTimeFunction<dim>> parse_interpolate_function(
+        const YAML::Node& node, Context<dim>& context);
 
     // Specific parsers for primitives
     static std::unique_ptr<ImplicitFunction<dim>> parse_ball(const YAML::Node& node);
