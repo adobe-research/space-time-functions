@@ -1,6 +1,6 @@
 # YAML Parser for Space-Time Functions
 
-The STF library now supports parsing space-time functions from YAML files, making it easy to define complex space-time functions declaratively without writing C++ code.
+The STF library now supports parsing space-time functions from YAML files, making it easy to define complex space-time functions declaratively without writing C++ code. The parser supports various primitives (ball, capsule, torus) and transforms including basic transforms (translation, rotation, scale), path-based transforms (polyline, polybezier), and transform composition.
 
 ## Basic Usage
 
@@ -124,6 +124,62 @@ transform:
       center: [0.0, 0.0, 0.0]
 ```
 
+### Polyline
+Creates piecewise linear paths through a sequence of points:
+```yaml
+transform:
+  type: polyline
+  points:
+    - [0.0, 0.0, 0.0]    # First point
+    - [1.0, 0.0, 0.0]    # Second point
+    - [1.0, 1.0, 0.0]    # Third point
+    - [1.0, 1.0, 1.0]    # Fourth point
+    # ... more points
+```
+
+**Requirements:**
+- Minimum 2 points required
+- Each point must have correct number of coordinates for the dimension
+- Uses Bishop frames for consistent orientation along the path
+
+### PolyBezier
+Creates smooth curved paths using piecewise cubic Bezier curves.
+
+**Option 1: Direct control points specification**
+```yaml
+transform:
+  type: polybezier
+  control_points:
+    # First Bezier segment (4 control points)
+    - [0.0, 0.0, 0.0]    # P0 - start point
+    - [0.5, 0.0, 0.0]    # P1 - control point
+    - [0.5, 0.5, 0.0]    # P2 - control point
+    - [1.0, 0.5, 0.0]    # P3 - end point
+    # Second Bezier segment (3 more points, P3 is shared)
+    - [1.5, 0.5, 0.0]    # P4 - control point
+    - [1.5, 1.0, 0.5]    # P5 - control point
+    - [1.0, 1.0, 1.0]    # P6 - end point
+  follow_tangent: true   # Optional, default: true
+```
+
+**Option 2: Generate from sample points**
+```yaml
+transform:
+  type: polybezier
+  sample_points:
+    - [0.0, 0.0, 0.0]    # Point 1 (curve passes through)
+    - [1.0, 0.0, 0.5]    # Point 2 (curve passes through)
+    - [2.0, 1.0, 0.5]    # Point 3 (curve passes through)
+    - [2.5, 2.0, 0.0]    # Point 4 (curve passes through)
+    # ... more sample points
+  follow_tangent: true   # Optional, default: true
+```
+
+**Parameters:**
+- `control_points`: Direct Bezier control points (minimum 4, must follow (n×3)+1 pattern)
+- `sample_points`: Points the curve passes through (minimum 3, control points generated automatically)
+- `follow_tangent`: Whether to align coordinate system with curve tangent (default: true)
+
 ## Examples
 
 ### Moving Ball
@@ -179,6 +235,69 @@ transform:
       vector: [0.0, 0.0, 1.0]
 ```
 
+### Polyline Path
+A ball following a piecewise linear path:
+```yaml
+type: sweep
+dimension: 3
+primitive:
+  type: ball
+  radius: 0.2
+  center: [0.0, 0.0, 0.0]
+  degree: 1
+transform:
+  type: polyline
+  points:
+    - [0.0, 0.0, 0.0]    # Start point
+    - [1.0, 0.0, 0.0]    # Move along x-axis
+    - [1.0, 1.0, 0.0]    # Turn along y-axis
+    - [1.0, 1.0, 1.0]    # Move up along z-axis
+    - [0.0, 1.0, 1.0]    # Move back along x-axis
+```
+
+### Smooth Bezier Curve
+A capsule following a smooth curved path:
+```yaml
+type: sweep
+dimension: 3
+primitive:
+  type: capsule
+  radius: 0.1
+  start: [0.0, 0.0, -0.2]
+  end: [0.0, 0.0, 0.2]
+transform:
+  type: polybezier
+  sample_points:
+    - [0.0, 0.0, 0.0]    # Curve passes through these points
+    - [1.0, 0.0, 0.5]
+    - [2.0, 1.0, 0.5]
+    - [2.5, 2.0, 0.0]
+    - [2.0, 3.0, -0.5]
+    - [1.0, 3.5, -0.5]
+    - [0.0, 3.0, 0.0]
+  follow_tangent: true
+```
+
+### 2D Polyline Path
+A 2D circle following a square path:
+```yaml
+type: sweep
+dimension: 2
+primitive:
+  type: ball
+  radius: 0.3
+  center: [0.0, 0.0]
+  degree: 1
+transform:
+  type: polyline
+  points:
+    - [0.0, 0.0]     # Start point
+    - [2.0, 0.0]     # Move right
+    - [2.0, 2.0]     # Move up
+    - [0.0, 2.0]     # Move left
+    - [0.0, 0.0]     # Return to start
+```
+
 ## Error Handling
 
 The parser provides detailed error messages for common issues:
@@ -188,6 +307,8 @@ The parser provides detailed error messages for common issues:
 - Dimension mismatches
 - Unknown primitive or transform types
 - Invalid YAML syntax
+- **Polyline errors**: Too few points (< 2), incorrect point dimensions
+- **PolyBezier errors**: Too few control points (< 4), wrong control point pattern (not (n×3)+1), too few sample points (< 3)
 
 ```cpp
 try {
