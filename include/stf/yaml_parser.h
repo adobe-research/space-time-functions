@@ -188,6 +188,7 @@ private:
     static Scalar parse_scalar(const YAML::Node& node, const std::string& field_name);
     static std::string parse_string(const YAML::Node& node, const std::string& field_name);
     static int parse_int(const YAML::Node& node, const std::string& field_name);
+    static int parse_int(const YAML::Node& node, const std::string& field_name, int default_value);
     static bool
     parse_bool(const YAML::Node& node, const std::string& field_name, bool default_value = false);
 

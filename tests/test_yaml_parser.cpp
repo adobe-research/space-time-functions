@@ -692,4 +692,101 @@ interpolation_type: unknown_type
     REQUIRE_THROWS_AS(YamlParser<3>::parse_from_string(yaml_content), YamlParseError);
 }
 
+TEST_CASE("YamlParser handles optional degree parameter for ball primitive", "[yaml_parser]") {
+    SECTION("Ball with explicit degree parameter") {
+        std::string yaml_content = R"(
+type: sweep
+dimension: 2
+primitive:
+  type: ball
+  radius: 1.0
+  center: [0.0, 0.0]
+  degree: 2
+transform:
+  type: translation
+  vector: [0.0, 0.0]
+)";
+
+        auto func = YamlParser<2>::parse_from_string(yaml_content);
+        REQUIRE(func != nullptr);
+        
+        // Test function evaluation - with degree 2, the ball should have different behavior
+        std::array<Scalar, 2> pos = {0.5, 0.0};
+        Scalar t = 0.0;
+        
+        Scalar value = func->value(pos, t);
+        // For degree 2, the distance function is different from degree 1
+        REQUIRE(std::isfinite(value));
+    }
+    
+    SECTION("Ball with default degree parameter (should be 1)") {
+        std::string yaml_content = R"(
+type: sweep
+dimension: 2
+primitive:
+  type: ball
+  radius: 1.0
+  center: [0.0, 0.0]
+  # degree parameter omitted - should default to 1
+transform:
+  type: translation
+  vector: [0.0, 0.0]
+)";
+
+        auto func = YamlParser<2>::parse_from_string(yaml_content);
+        REQUIRE(func != nullptr);
+        
+        // Test function evaluation - with default degree 1
+        std::array<Scalar, 2> pos = {0.5, 0.0};
+        Scalar t = 0.0;
+        
+        Scalar value = func->value(pos, t);
+        // For degree 1 (default), distance from center (0,0) to (0.5,0) should be 0.5 - 1.0 = -0.5
+        REQUIRE(value == Catch::Approx(-0.5).epsilon(1e-6));
+    }
+    
+    SECTION("Compare explicit degree=1 with default degree") {
+        std::string yaml_explicit = R"(
+type: sweep
+dimension: 2
+primitive:
+  type: ball
+  radius: 1.0
+  center: [0.0, 0.0]
+  degree: 1
+transform:
+  type: translation
+  vector: [0.0, 0.0]
+)";
+
+        std::string yaml_default = R"(
+type: sweep
+dimension: 2
+primitive:
+  type: ball
+  radius: 1.0
+  center: [0.0, 0.0]
+  # degree parameter omitted - should default to 1
+transform:
+  type: translation
+  vector: [0.0, 0.0]
+)";
+
+        auto func_explicit = YamlParser<2>::parse_from_string(yaml_explicit);
+        auto func_default = YamlParser<2>::parse_from_string(yaml_default);
+        
+        REQUIRE(func_explicit != nullptr);
+        REQUIRE(func_default != nullptr);
+        
+        // Both should give the same result
+        std::array<Scalar, 2> pos = {0.5, 0.0};
+        Scalar t = 0.0;
+        
+        Scalar value_explicit = func_explicit->value(pos, t);
+        Scalar value_default = func_default->value(pos, t);
+        
+        REQUIRE(value_explicit == Catch::Approx(value_default).epsilon(1e-10));
+    }
+}
+
 #endif

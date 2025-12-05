@@ -630,6 +630,99 @@ interpolation_type: unknown_type
         with pytest.raises(stf.YamlParseError):
             stf.parse_space_time_function_from_string(yaml_content)
 
+    def test_ball_optional_degree_parameter(self):
+        """Test that degree parameter is optional for ball primitive with default value 1."""
+        # Test with explicit degree
+        yaml_explicit = """
+type: sweep
+dimension: 2
+primitive:
+  type: ball
+  radius: 1.0
+  center: [0.0, 0.0]
+  degree: 1
+transform:
+  type: translation
+  vector: [0.0, 0.0]
+"""
+        
+        # Test with default degree (omitted)
+        yaml_default = """
+type: sweep
+dimension: 2
+primitive:
+  type: ball
+  radius: 1.0
+  center: [0.0, 0.0]
+  # degree parameter omitted - should default to 1
+transform:
+  type: translation
+  vector: [0.0, 0.0]
+"""
+        
+        func_explicit = stf.parse_space_time_function_from_string_2d(yaml_explicit)
+        func_default = stf.parse_space_time_function_from_string_2d(yaml_default)
+        
+        assert func_explicit is not None
+        assert func_default is not None
+        
+        # Both should give the same result
+        pos = [0.5, 0.0]
+        t = 0.0
+        
+        value_explicit = func_explicit.value(pos, t)
+        value_default = func_default.value(pos, t)
+        
+        # Values should be approximately equal
+        assert abs(value_explicit - value_default) < 1e-10
+        
+        # For degree 1, distance from center (0,0) to (0.5,0) should be 0.5 - 1.0 = -0.5
+        assert abs(value_default - (-0.5)) < 1e-6
+
+    def test_ball_different_degree_values(self):
+        """Test that different degree values produce different results."""
+        yaml_degree_1 = """
+type: sweep
+dimension: 2
+primitive:
+  type: ball
+  radius: 1.0
+  center: [0.0, 0.0]
+  degree: 1
+transform:
+  type: translation
+  vector: [0.0, 0.0]
+"""
+        
+        yaml_degree_2 = """
+type: sweep
+dimension: 2
+primitive:
+  type: ball
+  radius: 1.0
+  center: [0.0, 0.0]
+  degree: 2
+transform:
+  type: translation
+  vector: [0.0, 0.0]
+"""
+        
+        func_deg1 = stf.parse_space_time_function_from_string_2d(yaml_degree_1)
+        func_deg2 = stf.parse_space_time_function_from_string_2d(yaml_degree_2)
+        
+        assert func_deg1 is not None
+        assert func_deg2 is not None
+        
+        # Different degrees should produce different results
+        pos = [0.5, 0.0]
+        t = 0.0
+        
+        value_deg1 = func_deg1.value(pos, t)
+        value_deg2 = func_deg2.value(pos, t)
+        
+        # Values should be different for different degrees
+        assert abs(value_deg1 - value_deg2) > 1e-6
+
 
 if __name__ == "__main__":
     pytest.main([__file__])

@@ -187,7 +187,7 @@ template <int dim>
 std::unique_ptr<ImplicitFunction<dim>> YamlParser<dim>::parse_ball(const YAML::Node& node) {
     Scalar radius = parse_scalar(node, "radius");
     std::array<Scalar, dim> center = parse_array(node, "center");
-    int degree = parse_int(node, "degree");
+    int degree = parse_int(node, "degree", 1);  // Default degree is 1
     
     return std::make_unique<ImplicitBall<dim>>(radius, center, degree);
 }
@@ -501,6 +501,15 @@ template <int dim>
 int YamlParser<dim>::parse_int(const YAML::Node& node, const std::string& field_name) {
     if (!node[field_name]) {
         throw YamlParseError("Missing required field: " + field_name);
+    }
+    
+    return node[field_name].as<int>();
+}
+
+template <int dim>
+int YamlParser<dim>::parse_int(const YAML::Node& node, const std::string& field_name, int default_value) {
+    if (!node[field_name]) {
+        return default_value;
     }
     
     return node[field_name].as<int>();
