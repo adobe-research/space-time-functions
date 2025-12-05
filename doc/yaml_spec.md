@@ -130,6 +130,35 @@ radius: <scalar>             # Optional, defaults to 1.0
 positive_inside: <boolean>   # Optional, defaults to false
 ```
 
+### Implicit Union
+
+A smooth union of multiple implicit primitives using various blending functions.
+
+```yaml
+type: implicit_union
+primitives:
+  - # First primitive definition
+  - # Second primitive definition
+  # ... additional primitives (minimum 2 required)
+smooth_distance: <scalar>    # Optional, defaults to 0.0 (hard union)
+blending: <function>         # Optional, defaults to "quadratic"
+```
+
+#### Blending Functions
+
+The `blending` parameter supports the following functions (in order of "roundness"):
+
+- `circular`: Most rounded blending
+- `quadratic`: Smooth quadratic blending (default)
+- `quartic`: Quartic blending
+- `cubic`: Least rounded blending
+
+#### Parameters
+
+- `primitives`: Array of primitive definitions (any combination of ball, capsule, torus, duchon, or nested implicit_union)
+- `smooth_distance`: Distance over which to smooth the union (0 = hard union, >0 = smooth union)
+- `blending`: Blending function type for smooth transitions
+
 ## Transform Types
 
 ### Translation
@@ -311,6 +340,7 @@ primitive:
 | `polybezier` | `sample_points_file` | XYZ | Sample points for curve fitting |
 | `duchon` | `samples_file` | XYZ | 3D sample point coordinates |
 | `duchon` | `coeffs_file` | Text | RBF and affine coefficients |
+| `implicit_union` | (nested primitives) | - | Can contain primitives with file references |
 
 ### Advantages of External Files
 
@@ -442,4 +472,110 @@ function2:
     type: translation
     vector: [0.0, 1.0]
 interpolation_type: smooth
+```
+
+### Implicit Union Examples
+
+#### Simple Smooth Union
+
+```yaml
+type: sweep
+dimension: 3
+primitive:
+  type: implicit_union
+  primitives:
+    - type: ball
+      radius: 0.5
+      center: [0.0, 0.0, 0.0]
+      degree: 1
+    - type: ball
+      radius: 0.3
+      center: [0.8, 0.0, 0.0]
+      degree: 1
+  smooth_distance: 0.2
+  blending: quadratic
+transform:
+  type: translation
+  vector: [0.0, 0.0, 0.0]
+```
+
+#### Complex Multi-Primitive Union
+
+```yaml
+type: sweep
+dimension: 3
+primitive:
+  type: implicit_union
+  primitives:
+    - type: ball
+      radius: 0.4
+      center: [0.0, 0.0, 0.0]
+      degree: 1
+    - type: capsule
+      start: [0.5, 0.0, 0.0]
+      end: [0.5, 0.0, 0.8]
+      radius: 0.2
+    - type: torus
+      major_radius: 0.6
+      minor_radius: 0.1
+      center: [0.0, 0.8, 0.0]
+  smooth_distance: 0.3
+  blending: circular
+transform:
+  type: scale
+  factors: [1.0, 1.0, 1.0]
+```
+
+#### Hard Union (No Smoothing)
+
+```yaml
+type: sweep
+dimension: 2
+primitive:
+  type: implicit_union
+  primitives:
+    - type: ball
+      radius: 0.4
+      center: [0.0, 0.0]
+      degree: 1
+    - type: ball
+      radius: 0.3
+      center: [0.6, 0.0]
+      degree: 1
+  smooth_distance: 0.0  # Hard union
+  blending: quadratic
+transform:
+  type: translation
+  vector: [0.0, 0.0]
+```
+
+#### Nested Implicit Unions
+
+```yaml
+type: sweep
+dimension: 3
+primitive:
+  type: implicit_union
+  primitives:
+    - type: implicit_union
+      primitives:
+        - type: ball
+          radius: 0.3
+          center: [0.0, 0.0, 0.0]
+          degree: 1
+        - type: ball
+          radius: 0.2
+          center: [0.4, 0.0, 0.0]
+          degree: 1
+      smooth_distance: 0.1
+      blending: quadratic
+    - type: capsule
+      start: [0.0, 0.5, 0.0]
+      end: [0.4, 0.5, 0.0]
+      radius: 0.15
+  smooth_distance: 0.2
+  blending: circular
+transform:
+  type: translation
+  vector: [0.0, 0.0, 0.0]
 ```

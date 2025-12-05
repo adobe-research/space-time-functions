@@ -8,6 +8,7 @@
 #include <stf/sweep_function.h>
 #include <stf/union_function.h>
 #include <stf/primitives/duchon.h>
+#include <stf/primitives/implicit_union.h>
 #include <yaml-cpp/yaml.h>
 
 #include <cassert>
@@ -174,6 +175,7 @@ private:
     static std::unique_ptr<ImplicitFunction<dim>> parse_capsule(const YAML::Node& node);
     static std::unique_ptr<ImplicitFunction<dim>> parse_torus(const YAML::Node& node);
     static std::unique_ptr<ImplicitFunction<dim>> parse_duchon(const YAML::Node& node, const std::string& yaml_file_dir = "");
+    static std::unique_ptr<ImplicitFunction<dim>> parse_implicit_union(const YAML::Node& node, Context<dim>& context, const std::string& yaml_file_dir = "");
 
     // Specific parsers for transforms
     static std::unique_ptr<Transform<dim>> parse_translation(const YAML::Node& node);

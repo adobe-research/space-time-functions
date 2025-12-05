@@ -161,6 +161,8 @@ std::unique_ptr<ImplicitFunction<dim>> YamlParser<dim>::parse_primitive(const YA
         return parse_torus(node);
     } else if (type == "duchon") {
         return parse_duchon(node, yaml_file_dir);
+    } else if (type == "implicit_union") {
+        return parse_implicit_union(node, context, yaml_file_dir);
     } else {
         throw YamlParseError("Unknown primitive type: " + type);
     }
@@ -672,6 +674,89 @@ std::unique_ptr<ImplicitFunction<dim>> YamlParser<dim>::parse_duchon(const YAML:
     if constexpr (dim == 3) {
         return std::make_unique<Duchon>(samples_path, coeffs_path, center, radius, positive_inside);
     }
+}
+
+template <int dim>
+std::unique_ptr<ImplicitFunction<dim>> YamlParser<dim>::parse_implicit_union(const YAML::Node& node, Context<dim>& context, const std::string& yaml_file_dir) {
+    validate_required_field(node, "primitives");
+    
+    if (!node["primitives"].IsSequence()) {
+        throw YamlParseError("'primitives' field must be a sequence");
+    }
+    
+    if (node["primitives"].size() < 2) {
+        throw YamlParseError("Implicit union requires at least 2 primitives");
+    }
+    
+    // Parse blending function (optional, defaults to Quadratic)
+    std::string blending_str = "quadratic";
+    if (node["blending"]) {
+        blending_str = parse_string(node, "blending");
+    }
+    
+    // Parse smooth distance (optional, defaults to 0)
+    Scalar smooth_distance = 0.0;
+    if (node["smooth_distance"]) {
+        smooth_distance = parse_scalar(node, "smooth_distance");
+    }
+    
+    // Parse all primitives
+    std::vector<std::unique_ptr<ImplicitFunction<dim>>> primitives;
+    for (const auto& primitive_node : node["primitives"]) {
+        primitives.push_back(parse_primitive(primitive_node, context, yaml_file_dir));
+    }
+    
+    // Store all primitives in context and get raw pointers
+    std::vector<ImplicitFunction<dim>*> primitive_ptrs;
+    for (auto& primitive : primitives) {
+        primitive_ptrs.push_back(context.add_primitive(std::move(primitive)));
+    }
+    
+    // Create union tree based on blending function
+    std::unique_ptr<ImplicitFunction<dim>> result;
+    
+    if (blending_str == "quadratic") {
+        result = std::make_unique<ImplicitUnion<dim, BlendingFunction::Quadratic>>(
+            *primitive_ptrs[0], *primitive_ptrs[1], smooth_distance);
+        
+        for (size_t i = 2; i < primitive_ptrs.size(); ++i) {
+            auto* prev_union = context.add_primitive(std::move(result));
+            result = std::make_unique<ImplicitUnion<dim, BlendingFunction::Quadratic>>(
+                *prev_union, *primitive_ptrs[i], smooth_distance);
+        }
+    } else if (blending_str == "cubic") {
+        result = std::make_unique<ImplicitUnion<dim, BlendingFunction::Cubic>>(
+            *primitive_ptrs[0], *primitive_ptrs[1], smooth_distance);
+        
+        for (size_t i = 2; i < primitive_ptrs.size(); ++i) {
+            auto* prev_union = context.add_primitive(std::move(result));
+            result = std::make_unique<ImplicitUnion<dim, BlendingFunction::Cubic>>(
+                *prev_union, *primitive_ptrs[i], smooth_distance);
+        }
+    } else if (blending_str == "quartic") {
+        result = std::make_unique<ImplicitUnion<dim, BlendingFunction::Quartic>>(
+            *primitive_ptrs[0], *primitive_ptrs[1], smooth_distance);
+        
+        for (size_t i = 2; i < primitive_ptrs.size(); ++i) {
+            auto* prev_union = context.add_primitive(std::move(result));
+            result = std::make_unique<ImplicitUnion<dim, BlendingFunction::Quartic>>(
+                *prev_union, *primitive_ptrs[i], smooth_distance);
+        }
+    } else if (blending_str == "circular") {
+        result = std::make_unique<ImplicitUnion<dim, BlendingFunction::Circular>>(
+            *primitive_ptrs[0], *primitive_ptrs[1], smooth_distance);
+        
+        for (size_t i = 2; i < primitive_ptrs.size(); ++i) {
+            auto* prev_union = context.add_primitive(std::move(result));
+            result = std::make_unique<ImplicitUnion<dim, BlendingFunction::Circular>>(
+                *prev_union, *primitive_ptrs[i], smooth_distance);
+        }
+    } else {
+        throw YamlParseError("Unknown blending function: " + blending_str + 
+                           ". Supported: quadratic, cubic, quartic, circular");
+    }
+    
+    return result;
 }
 
 // Explicit template instantiations

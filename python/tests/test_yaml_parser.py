@@ -1123,6 +1123,268 @@ transform:
         value = func.value(pos, t)
         assert abs(value) < float('inf')
 
+    def test_implicit_union_primitive(self):
+        """Test parsing implicit union primitive."""
+        yaml_content = """
+type: sweep
+dimension: 3
+primitive:
+  type: implicit_union
+  primitives:
+    - type: ball
+      radius: 0.5
+      center: [0.0, 0.0, 0.0]
+      degree: 1
+    - type: ball
+      radius: 0.3
+      center: [0.8, 0.0, 0.0]
+      degree: 1
+  smooth_distance: 0.2
+  blending: quadratic
+transform:
+  type: translation
+  vector: [0.0, 0.0, 0.0]
+"""
+        
+        func = stf.parse_space_time_function_from_string(yaml_content)
+        assert func is not None
+        
+        # Test function evaluation
+        pos = [0.4, 0.0, 0.0]
+        t = 0.0
+        value = func.value(pos, t)
+        assert abs(value) < float('inf')
+        
+        # Test gradient computation
+        gradient = func.gradient(pos, t)
+        assert len(gradient) == 4  # [df/dx, df/dy, df/dz, df/dt]
+        assert all(abs(g) < float('inf') for g in gradient)
+
+    def test_implicit_union_blending_functions(self):
+        """Test different blending functions for implicit union."""
+        blending_functions = ["quadratic", "cubic", "quartic", "circular"]
+        
+        for blending in blending_functions:
+            yaml_content = f"""
+type: sweep
+dimension: 2
+primitive:
+  type: implicit_union
+  primitives:
+    - type: ball
+      radius: 0.4
+      center: [0.0, 0.0]
+      degree: 1
+    - type: ball
+      radius: 0.3
+      center: [0.6, 0.0]
+      degree: 1
+  smooth_distance: 0.1
+  blending: {blending}
+transform:
+  type: translation
+  vector: [0.0, 0.0]
+"""
+            
+            func = stf.parse_space_time_function_from_string_2d(yaml_content)
+            assert func is not None
+            
+            # Test function evaluation
+            pos = [0.3, 0.0]
+            t = 0.0
+            value = func.value(pos, t)
+            assert abs(value) < float('inf')
+
+    def test_implicit_union_multiple_primitives(self):
+        """Test implicit union with multiple primitives."""
+        yaml_content = """
+type: sweep
+dimension: 3
+primitive:
+  type: implicit_union
+  primitives:
+    - type: ball
+      radius: 0.3
+      center: [0.0, 0.0, 0.0]
+      degree: 1
+    - type: ball
+      radius: 0.2
+      center: [0.5, 0.0, 0.0]
+      degree: 1
+    - type: ball
+      radius: 0.25
+      center: [0.0, 0.5, 0.0]
+      degree: 1
+    - type: capsule
+      start: [0.0, 0.0, 0.0]
+      end: [0.0, 0.0, 0.5]
+      radius: 0.1
+  smooth_distance: 0.15
+  blending: circular
+transform:
+  type: translation
+  vector: [0.0, 0.0, 0.0]
+"""
+        
+        func = stf.parse_space_time_function_from_string(yaml_content)
+        assert func is not None
+        
+        # Test function evaluation
+        pos = [0.1, 0.1, 0.1]
+        t = 0.0
+        value = func.value(pos, t)
+        assert abs(value) < float('inf')
+
+    def test_implicit_union_default_parameters(self):
+        """Test implicit union with default parameters."""
+        yaml_content = """
+type: sweep
+dimension: 2
+primitive:
+  type: implicit_union
+  primitives:
+    - type: ball
+      radius: 0.4
+      center: [0.0, 0.0]
+      degree: 1
+    - type: ball
+      radius: 0.3
+      center: [0.6, 0.0]
+      degree: 1
+  # smooth_distance and blending use defaults
+transform:
+  type: translation
+  vector: [0.0, 0.0]
+"""
+        
+        func = stf.parse_space_time_function_from_string_2d(yaml_content)
+        assert func is not None
+        
+        # Test function evaluation
+        pos = [0.3, 0.0]
+        t = 0.0
+        value = func.value(pos, t)
+        assert abs(value) < float('inf')
+
+    def test_implicit_union_hard_union(self):
+        """Test implicit union with hard union (smooth_distance = 0)."""
+        yaml_content = """
+type: sweep
+dimension: 3
+primitive:
+  type: implicit_union
+  primitives:
+    - type: ball
+      radius: 0.5
+      center: [0.0, 0.0, 0.0]
+      degree: 1
+    - type: ball
+      radius: 0.3
+      center: [1.0, 0.0, 0.0]
+      degree: 1
+  smooth_distance: 0.0
+  blending: quadratic
+transform:
+  type: translation
+  vector: [0.0, 0.0, 0.0]
+"""
+        
+        func = stf.parse_space_time_function_from_string(yaml_content)
+        assert func is not None
+        
+        # Test function evaluation
+        pos = [0.5, 0.0, 0.0]
+        t = 0.0
+        value = func.value(pos, t)
+        assert abs(value) < float('inf')
+
+    def test_implicit_union_error_handling(self):
+        """Test error handling for invalid implicit union configurations."""
+        # Test insufficient primitives
+        yaml_insufficient = """
+type: sweep
+dimension: 2
+primitive:
+  type: implicit_union
+  primitives:
+    - type: ball
+      radius: 0.4
+      center: [0.0, 0.0]
+      degree: 1
+  # Only one primitive - need at least 2
+transform:
+  type: translation
+  vector: [0.0, 0.0]
+"""
+        
+        with pytest.raises(stf.YamlParseError):
+            stf.parse_space_time_function_from_string_2d(yaml_insufficient)
+        
+        # Test unknown blending function
+        yaml_unknown_blending = """
+type: sweep
+dimension: 2
+primitive:
+  type: implicit_union
+  primitives:
+    - type: ball
+      radius: 0.4
+      center: [0.0, 0.0]
+      degree: 1
+    - type: ball
+      radius: 0.3
+      center: [0.6, 0.0]
+      degree: 1
+  blending: unknown_blending
+transform:
+  type: translation
+  vector: [0.0, 0.0]
+"""
+        
+        with pytest.raises(stf.YamlParseError):
+            stf.parse_space_time_function_from_string_2d(yaml_unknown_blending)
+
+    def test_implicit_union_nested_with_other_primitives(self):
+        """Test implicit union nested with other primitive types."""
+        yaml_content = """
+type: sweep
+dimension: 3
+primitive:
+  type: implicit_union
+  primitives:
+    - type: ball
+      radius: 0.4
+      center: [0.0, 0.0, 0.0]
+      degree: 1
+    - type: capsule
+      start: [0.5, 0.0, 0.0]
+      end: [0.5, 0.0, 0.8]
+      radius: 0.2
+    - type: torus
+      major_radius: 0.6
+      minor_radius: 0.1
+      center: [0.0, 0.8, 0.0]
+  smooth_distance: 0.3
+  blending: quartic
+transform:
+  type: scale
+  factors: [1.0, 1.0, 1.0]
+  center: [0.0, 0.0, 0.0]
+"""
+        
+        func = stf.parse_space_time_function_from_string(yaml_content)
+        assert func is not None
+        
+        # Test function evaluation
+        pos = [0.2, 0.2, 0.2]
+        t = 0.0
+        value = func.value(pos, t)
+        assert abs(value) < float('inf')
+        
+        # Test time derivative
+        time_deriv = func.time_derivative(pos, t)
+        assert abs(time_deriv) < float('inf')
+
 
 if __name__ == "__main__":
     pytest.main([__file__])

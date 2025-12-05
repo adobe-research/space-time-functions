@@ -1193,4 +1193,250 @@ transform:
     }
 }
 
+TEST_CASE("YamlParser can parse implicit union primitive", "[yaml_parser]") {
+    SECTION("Simple implicit union with two balls") {
+        std::string yaml_content = R"(
+type: sweep
+dimension: 3
+primitive:
+  type: implicit_union
+  primitives:
+    - type: ball
+      radius: 0.5
+      center: [0.0, 0.0, 0.0]
+      degree: 1
+    - type: ball
+      radius: 0.3
+      center: [0.8, 0.0, 0.0]
+      degree: 1
+  smooth_distance: 0.2
+  blending: quadratic
+transform:
+  type: translation
+  vector: [0.0, 0.0, 0.0]
+)";
+
+        auto func = YamlParser<3>::parse_from_string(yaml_content);
+        REQUIRE(func != nullptr);
+        
+        // Test function evaluation
+        std::array<Scalar, 3> pos = {0.4, 0.0, 0.0};
+        Scalar t = 0.0;
+        
+        Scalar value = func->value(pos, t);
+        REQUIRE(std::isfinite(value));
+        
+        // Test gradient computation
+        auto gradient = func->gradient(pos, t);
+        REQUIRE(std::isfinite(gradient[0]));
+        REQUIRE(std::isfinite(gradient[1]));
+        REQUIRE(std::isfinite(gradient[2]));
+        REQUIRE(std::isfinite(gradient[3])); // time derivative
+    }
+    
+    SECTION("Implicit union with different blending functions") {
+        std::vector<std::string> blending_functions = {"quadratic", "cubic", "quartic", "circular"};
+        
+        for (const auto& blending : blending_functions) {
+            std::string yaml_content = R"(
+type: sweep
+dimension: 2
+primitive:
+  type: implicit_union
+  primitives:
+    - type: ball
+      radius: 0.4
+      center: [0.0, 0.0]
+      degree: 1
+    - type: ball
+      radius: 0.3
+      center: [0.6, 0.0]
+      degree: 1
+  smooth_distance: 0.1
+  blending: )" + blending + R"(
+transform:
+  type: translation
+  vector: [0.0, 0.0]
+)";
+
+            auto func = YamlParser<2>::parse_from_string(yaml_content);
+            REQUIRE(func != nullptr);
+            
+            // Test function evaluation
+            std::array<Scalar, 2> pos = {0.3, 0.0};
+            Scalar t = 0.0;
+            
+            Scalar value = func->value(pos, t);
+            REQUIRE(std::isfinite(value));
+        }
+    }
+    
+    SECTION("Implicit union with multiple primitives") {
+        std::string yaml_content = R"(
+type: sweep
+dimension: 3
+primitive:
+  type: implicit_union
+  primitives:
+    - type: ball
+      radius: 0.3
+      center: [0.0, 0.0, 0.0]
+      degree: 1
+    - type: ball
+      radius: 0.2
+      center: [0.5, 0.0, 0.0]
+      degree: 1
+    - type: ball
+      radius: 0.25
+      center: [0.0, 0.5, 0.0]
+      degree: 1
+    - type: capsule
+      start: [0.0, 0.0, 0.0]
+      end: [0.0, 0.0, 0.5]
+      radius: 0.1
+  smooth_distance: 0.15
+  blending: circular
+transform:
+  type: translation
+  vector: [0.0, 0.0, 0.0]
+)";
+
+        auto func = YamlParser<3>::parse_from_string(yaml_content);
+        REQUIRE(func != nullptr);
+        
+        // Test function evaluation
+        std::array<Scalar, 3> pos = {0.1, 0.1, 0.1};
+        Scalar t = 0.0;
+        
+        Scalar value = func->value(pos, t);
+        REQUIRE(std::isfinite(value));
+    }
+    
+    SECTION("Implicit union with default parameters") {
+        std::string yaml_content = R"(
+type: sweep
+dimension: 2
+primitive:
+  type: implicit_union
+  primitives:
+    - type: ball
+      radius: 0.4
+      center: [0.0, 0.0]
+      degree: 1
+    - type: ball
+      radius: 0.3
+      center: [0.6, 0.0]
+      degree: 1
+  # smooth_distance and blending use defaults
+transform:
+  type: translation
+  vector: [0.0, 0.0]
+)";
+
+        auto func = YamlParser<2>::parse_from_string(yaml_content);
+        REQUIRE(func != nullptr);
+        
+        // Test function evaluation
+        std::array<Scalar, 2> pos = {0.3, 0.0};
+        Scalar t = 0.0;
+        
+        Scalar value = func->value(pos, t);
+        REQUIRE(std::isfinite(value));
+    }
+    
+    SECTION("Implicit union with hard union (smooth_distance = 0)") {
+        std::string yaml_content = R"(
+type: sweep
+dimension: 3
+primitive:
+  type: implicit_union
+  primitives:
+    - type: ball
+      radius: 0.5
+      center: [0.0, 0.0, 0.0]
+      degree: 1
+    - type: ball
+      radius: 0.3
+      center: [1.0, 0.0, 0.0]
+      degree: 1
+  smooth_distance: 0.0
+  blending: quadratic
+transform:
+  type: translation
+  vector: [0.0, 0.0, 0.0]
+)";
+
+        auto func = YamlParser<3>::parse_from_string(yaml_content);
+        REQUIRE(func != nullptr);
+        
+        // Test function evaluation
+        std::array<Scalar, 3> pos = {0.5, 0.0, 0.0};
+        Scalar t = 0.0;
+        
+        Scalar value = func->value(pos, t);
+        REQUIRE(std::isfinite(value));
+    }
+}
+
+TEST_CASE("YamlParser handles implicit union errors correctly", "[yaml_parser]") {
+    SECTION("Implicit union with insufficient primitives") {
+        std::string yaml_content = R"(
+type: sweep
+dimension: 2
+primitive:
+  type: implicit_union
+  primitives:
+    - type: ball
+      radius: 0.4
+      center: [0.0, 0.0]
+      degree: 1
+  # Only one primitive - need at least 2
+transform:
+  type: translation
+  vector: [0.0, 0.0]
+)";
+
+        REQUIRE_THROWS_AS(YamlParser<2>::parse_from_string(yaml_content), YamlParseError);
+    }
+    
+    SECTION("Implicit union with unknown blending function") {
+        std::string yaml_content = R"(
+type: sweep
+dimension: 2
+primitive:
+  type: implicit_union
+  primitives:
+    - type: ball
+      radius: 0.4
+      center: [0.0, 0.0]
+      degree: 1
+    - type: ball
+      radius: 0.3
+      center: [0.6, 0.0]
+      degree: 1
+  blending: unknown_blending
+transform:
+  type: translation
+  vector: [0.0, 0.0]
+)";
+
+        REQUIRE_THROWS_AS(YamlParser<2>::parse_from_string(yaml_content), YamlParseError);
+    }
+    
+    SECTION("Implicit union with non-sequence primitives field") {
+        std::string yaml_content = R"(
+type: sweep
+dimension: 2
+primitive:
+  type: implicit_union
+  primitives: not_a_sequence
+transform:
+  type: translation
+  vector: [0.0, 0.0]
+)";
+
+        REQUIRE_THROWS_AS(YamlParser<2>::parse_from_string(yaml_content), YamlParseError);
+    }
+}
+
 #endif
