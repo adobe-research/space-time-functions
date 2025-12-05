@@ -1123,6 +1123,127 @@ transform:
         value = func.value(pos, t)
         assert abs(value) < float('inf')
 
+    def test_union_function_smooth_distance(self):
+        """Test union function with smooth_distance parameter."""
+        yaml_content = """
+type: union
+dimension: 3
+functions:
+  - type: sweep
+    primitive:
+      type: ball
+      radius: 0.3
+      center: [0.0, 0.0, 0.0]
+      degree: 1
+    transform:
+      type: translation
+      vector: [1.0, 0.0, 0.0]
+  - type: sweep
+    primitive:
+      type: ball
+      radius: 0.4
+      center: [0.0, 0.0, 0.0]
+      degree: 1
+    transform:
+      type: translation
+      vector: [-1.0, 0.0, 0.0]
+smooth_distance: 0.5
+"""
+        
+        func = stf.parse_space_time_function_from_string(yaml_content)
+        assert func is not None
+        
+        # Test function evaluation
+        pos = [0.0, 0.0, 0.0]
+        t = 0.5
+        value = func.value(pos, t)
+        assert abs(value) < float('inf')
+        
+        # Test gradient computation
+        gradient = func.gradient(pos, t)
+        assert len(gradient) == 4  # [df/dx, df/dy, df/dz, df/dt]
+        assert all(abs(g) < float('inf') for g in gradient)
+
+    def test_union_function_default_smooth_distance(self):
+        """Test union function with default smooth_distance (hard union)."""
+        yaml_content = """
+type: union
+dimension: 2
+functions:
+  - type: sweep
+    primitive:
+      type: ball
+      radius: 0.3
+      center: [0.0, 0.0]
+      degree: 1
+    transform:
+      type: translation
+      vector: [0.5, 0.0]
+  - type: sweep
+    primitive:
+      type: ball
+      radius: 0.3
+      center: [0.0, 0.0]
+      degree: 1
+    transform:
+      type: translation
+      vector: [-0.5, 0.0]
+"""
+        
+        func = stf.parse_space_time_function_from_string_2d(yaml_content)
+        assert func is not None
+        
+        # Test function evaluation
+        pos = [0.0, 0.0]
+        t = 0.5
+        value = func.value(pos, t)
+        assert abs(value) < float('inf')
+
+    def test_union_function_multiple_with_smooth_distance(self):
+        """Test union function with multiple functions and smooth_distance."""
+        yaml_content = """
+type: union
+dimension: 3
+functions:
+  - type: sweep
+    primitive:
+      type: ball
+      radius: 0.2
+      center: [0.0, 0.0, 0.0]
+      degree: 1
+    transform:
+      type: translation
+      vector: [1.0, 0.0, 0.0]
+  - type: sweep
+    primitive:
+      type: ball
+      radius: 0.2
+      center: [0.0, 0.0, 0.0]
+      degree: 1
+    transform:
+      type: translation
+      vector: [0.0, 1.0, 0.0]
+  - type: sweep
+    primitive:
+      type: ball
+      radius: 0.2
+      center: [0.0, 0.0, 0.0]
+      degree: 1
+    transform:
+      type: translation
+      vector: [0.0, 0.0, 1.0]
+smooth_distance: 0.3
+"""
+        
+        func = stf.parse_space_time_function_from_string(yaml_content)
+        assert func is not None
+        
+        # Test function evaluation
+        pos = [0.3, 0.3, 0.3]
+        t = 0.5
+        value = func.value(pos, t)
+        assert abs(value) < float('inf')
+
     def test_implicit_union_primitive(self):
         """Test parsing implicit union primitive."""
         yaml_content = """

@@ -65,7 +65,13 @@ functions:
   - # First space-time function
   - # Second space-time function
   # ... additional functions
+smooth_distance: <scalar>    # Optional, defaults to 0.0 (hard union)
 ```
+
+#### Parameters
+
+- `functions`: Array of space-time function definitions (minimum 2 required)
+- `smooth_distance`: Distance over which to smooth the union (0 = hard union, >0 = smooth union)
 
 ### Interpolate Function
 
@@ -446,6 +452,7 @@ functions:
       type: rotation
       angle: 1.57
       axis: [0.0, 1.0, 0.0]
+smooth_distance: 0.3         # Smooth blending between functions
 ```
 
 ### Interpolation Between Two Functions

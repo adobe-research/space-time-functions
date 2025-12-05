@@ -1193,6 +1193,134 @@ transform:
     }
 }
 
+TEST_CASE("YamlParser supports smooth_distance in union function", "[yaml_parser]") {
+    SECTION("Union function with smooth_distance") {
+        std::string yaml_content = R"(
+type: union
+dimension: 3
+functions:
+  - type: sweep
+    primitive:
+      type: ball
+      radius: 0.3
+      center: [0.0, 0.0, 0.0]
+      degree: 1
+    transform:
+      type: translation
+      vector: [1.0, 0.0, 0.0]
+  - type: sweep
+    primitive:
+      type: ball
+      radius: 0.4
+      center: [0.0, 0.0, 0.0]
+      degree: 1
+    transform:
+      type: translation
+      vector: [-1.0, 0.0, 0.0]
+smooth_distance: 0.5
+)";
+
+        auto func = YamlParser<3>::parse_from_string(yaml_content);
+        REQUIRE(func != nullptr);
+        
+        // Test function evaluation
+        std::array<Scalar, 3> pos = {0.0, 0.0, 0.0};
+        Scalar t = 0.5;
+        
+        Scalar value = func->value(pos, t);
+        REQUIRE(std::isfinite(value));
+        
+        // Test gradient computation
+        auto gradient = func->gradient(pos, t);
+        REQUIRE(std::isfinite(gradient[0]));
+        REQUIRE(std::isfinite(gradient[1]));
+        REQUIRE(std::isfinite(gradient[2]));
+        REQUIRE(std::isfinite(gradient[3])); // time derivative
+    }
+    
+    SECTION("Union function with default smooth_distance (hard union)") {
+        std::string yaml_content = R"(
+type: union
+dimension: 2
+functions:
+  - type: sweep
+    primitive:
+      type: ball
+      radius: 0.3
+      center: [0.0, 0.0]
+      degree: 1
+    transform:
+      type: translation
+      vector: [0.5, 0.0]
+  - type: sweep
+    primitive:
+      type: ball
+      radius: 0.3
+      center: [0.0, 0.0]
+      degree: 1
+    transform:
+      type: translation
+      vector: [-0.5, 0.0]
+)";
+
+        auto func = YamlParser<2>::parse_from_string(yaml_content);
+        REQUIRE(func != nullptr);
+        
+        // Test function evaluation
+        std::array<Scalar, 2> pos = {0.0, 0.0};
+        Scalar t = 0.5;
+        
+        Scalar value = func->value(pos, t);
+        REQUIRE(std::isfinite(value));
+    }
+    
+    SECTION("Union function with multiple functions and smooth_distance") {
+        std::string yaml_content = R"(
+type: union
+dimension: 3
+functions:
+  - type: sweep
+    primitive:
+      type: ball
+      radius: 0.2
+      center: [0.0, 0.0, 0.0]
+      degree: 1
+    transform:
+      type: translation
+      vector: [1.0, 0.0, 0.0]
+  - type: sweep
+    primitive:
+      type: ball
+      radius: 0.2
+      center: [0.0, 0.0, 0.0]
+      degree: 1
+    transform:
+      type: translation
+      vector: [0.0, 1.0, 0.0]
+  - type: sweep
+    primitive:
+      type: ball
+      radius: 0.2
+      center: [0.0, 0.0, 0.0]
+      degree: 1
+    transform:
+      type: translation
+      vector: [0.0, 0.0, 1.0]
+smooth_distance: 0.3
+)";
+
+        auto func = YamlParser<3>::parse_from_string(yaml_content);
+        REQUIRE(func != nullptr);
+        
+        // Test function evaluation
+        std::array<Scalar, 3> pos = {0.3, 0.3, 0.3};
+        Scalar t = 0.5;
+        
+        Scalar value = func->value(pos, t);
+        REQUIRE(std::isfinite(value));
+    }
+}
+
 TEST_CASE("YamlParser can parse implicit union primitive", "[yaml_parser]") {
     SECTION("Simple implicit union with two balls") {
         std::string yaml_content = R"(

@@ -129,6 +129,12 @@ std::unique_ptr<SpaceTimeFunction<dim>> YamlParser<dim>::parse_union_function(co
         throw YamlParseError("Union function requires at least 2 functions");
     }
     
+    // Parse smooth_distance parameter (optional, defaults to 0.0)
+    Scalar smooth_distance = 0.0;
+    if (node["smooth_distance"]) {
+        smooth_distance = parse_scalar(node, "smooth_distance");
+    }
+    
     // Store all functions and get raw pointers
     std::vector<SpaceTimeFunction<dim>*> function_ptrs;
     for (auto& func : functions) {
@@ -136,12 +142,12 @@ std::unique_ptr<SpaceTimeFunction<dim>> YamlParser<dim>::parse_union_function(co
     }
     
     // For simplicity, we'll create a binary union tree
-    auto result = std::make_unique<UnionFunction<dim>>(*function_ptrs[0], *function_ptrs[1]);
+    auto result = std::make_unique<UnionFunction<dim>>(*function_ptrs[0], *function_ptrs[1], smooth_distance);
     
     for (size_t i = 2; i < function_ptrs.size(); ++i) {
         // Store intermediate union functions too
         auto* prev_union = context.add_function(std::move(result));
-        result = std::make_unique<UnionFunction<dim>>(*prev_union, *function_ptrs[i]);
+        result = std::make_unique<UnionFunction<dim>>(*prev_union, *function_ptrs[i], smooth_distance);
     }
     
     return std::move(result);
