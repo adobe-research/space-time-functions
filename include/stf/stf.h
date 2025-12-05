@@ -11,3 +11,7 @@
 #include <stf/space_time_function.h>
 #include <stf/sweep_function.h>
 #include <stf/union_function.h>
+
+#ifdef STF_YAML_PARSER_ENABLED
+#include <stf/yaml_parser.h>
+#endif

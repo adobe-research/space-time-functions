@@ -20,6 +20,9 @@ template <int dim>
 class Transform
 {
 public:
+    virtual ~Transform() = default;
+
+public:
     /**
      * @brief Transforms a point in space according to the transformation rules.
      *

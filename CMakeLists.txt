@@ -4,15 +4,35 @@ project(stf)
 
 option(STF_BUILD_TESTS "Build tests" OFF)
 option(STF_PYTHON_BINDING "Build python binding" OFF)
+option(STF_YAML_PARSER "Build YAML parser support" ON)
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake)
 
-add_library(stf INTERFACE)
-target_include_directories(stf INTERFACE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-)
-target_compile_features(stf INTERFACE cxx_std_20)
+# Create main library
+if (STF_YAML_PARSER)
+    # Add yaml-cpp dependency
+    include(yaml-cpp)
+    
+    # Create library with source files
+    file(GLOB STF_SOURCES "${CMAKE_CURRENT_LIST_DIR}/src/*.cpp")
+    add_library(stf ${STF_SOURCES})
+    target_include_directories(stf PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+    )
+    target_compile_features(stf PUBLIC cxx_std_20)
+    target_link_libraries(stf PUBLIC yaml-cpp::yaml-cpp)
+    target_compile_definitions(stf PUBLIC STF_YAML_PARSER_ENABLED)
+else()
+    # Header-only library without YAML support
+    add_library(stf INTERFACE)
+    target_include_directories(stf INTERFACE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+    )
+    target_compile_features(stf INTERFACE cxx_std_20)
+endif()
+
 add_library(stf::stf ALIAS stf)
 
 if (STF_BUILD_TESTS)

@@ -6,6 +6,7 @@
 #include <stf/transforms/transform.h>
 
 #include <array>
+#include <cassert>
 #include <stdexcept>
 
 namespace stf {

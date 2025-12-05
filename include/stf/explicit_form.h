@@ -4,6 +4,7 @@
 #include <stf/space_time_function.h>
 
 #include <array>
+#include <functional>
 
 namespace stf {
 
