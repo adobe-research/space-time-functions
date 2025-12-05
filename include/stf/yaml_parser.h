@@ -176,6 +176,8 @@ private:
     static std::unique_ptr<Transform<dim>> parse_rotation(const YAML::Node& node);
     static std::unique_ptr<Transform<dim>> parse_compose(
         const YAML::Node& node, Context<dim>& context);
+    static std::unique_ptr<Transform<dim>> parse_polyline(const YAML::Node& node);
+    static std::unique_ptr<Transform<dim>> parse_polybezier(const YAML::Node& node);
 
     // Utility functions
     static std::array<Scalar, dim> parse_array(

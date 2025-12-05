@@ -259,6 +259,159 @@ transform:
         assert len(gradient) == 4  # [df/dx, df/dy, df/dz, df/dt]
         assert all(isinstance(g, float) for g in gradient)
 
+    def test_polyline_transform(self):
+        """Test parsing polyline transform."""
+        yaml_content = """
+type: sweep
+dimension: 3
+primitive:
+  type: ball
+  radius: 0.2
+  center: [0.0, 0.0, 0.0]
+  degree: 1
+transform:
+  type: polyline
+  points:
+    - [0.0, 0.0, 0.0]
+    - [1.0, 0.0, 0.0]
+    - [1.0, 1.0, 0.0]
+    - [1.0, 1.0, 1.0]
+"""
+        
+        func = stf.parse_space_time_function_from_string(yaml_content)
+        assert func is not None
+        
+        # Test function evaluation
+        pos = [0.5, 0.0, 0.0]
+        t = 0.25
+        value = func.value(pos, t)
+        assert abs(value) < float('inf')
+
+    def test_polyline_2d_transform(self):
+        """Test parsing 2D polyline transform."""
+        yaml_content = """
+type: sweep
+dimension: 2
+primitive:
+  type: ball
+  radius: 0.3
+  center: [0.0, 0.0]
+  degree: 1
+transform:
+  type: polyline
+  points:
+    - [0.0, 0.0]
+    - [2.0, 0.0]
+    - [2.0, 2.0]
+    - [0.0, 2.0]
+"""
+        
+        func = stf.parse_space_time_function_from_string_2d(yaml_content)
+        assert func is not None
+        
+        # Test function evaluation
+        pos = [1.0, 0.0]
+        t = 0.25
+        value = func.value(pos, t)
+        assert abs(value) < float('inf')
+
+    def test_polybezier_control_points(self):
+        """Test parsing polybezier with control points."""
+        yaml_content = """
+type: sweep
+dimension: 3
+primitive:
+  type: ball
+  radius: 0.15
+  center: [0.0, 0.0, 0.0]
+  degree: 1
+transform:
+  type: polybezier
+  control_points:
+    - [0.0, 0.0, 0.0]
+    - [0.5, 0.0, 0.0]
+    - [0.5, 0.5, 0.0]
+    - [1.0, 0.5, 0.0]
+  follow_tangent: true
+"""
+        
+        func = stf.parse_space_time_function_from_string(yaml_content)
+        assert func is not None
+        
+        # Test function evaluation
+        pos = [0.5, 0.25, 0.0]
+        t = 0.5
+        value = func.value(pos, t)
+        assert abs(value) < float('inf')
+
+    def test_polybezier_from_samples(self):
+        """Test parsing polybezier from sample points."""
+        yaml_content = """
+type: sweep
+dimension: 3
+primitive:
+  type: ball
+  radius: 0.1
+  center: [0.0, 0.0, 0.0]
+  degree: 1
+transform:
+  type: polybezier
+  sample_points:
+    - [0.0, 0.0, 0.0]
+    - [1.0, 0.0, 0.5]
+    - [2.0, 1.0, 0.5]
+    - [2.5, 2.0, 0.0]
+  follow_tangent: false
+"""
+        
+        func = stf.parse_space_time_function_from_string(yaml_content)
+        assert func is not None
+        
+        # Test function evaluation
+        pos = [1.0, 0.5, 0.25]
+        t = 0.5
+        value = func.value(pos, t)
+        assert abs(value) < float('inf')
+
+    def test_polyline_error_handling(self):
+        """Test error handling for invalid polyline."""
+        yaml_content = """
+type: sweep
+dimension: 3
+primitive:
+  type: ball
+  radius: 0.2
+  center: [0.0, 0.0, 0.0]
+  degree: 1
+transform:
+  type: polyline
+  points:
+    - [0.0, 0.0, 0.0]
+"""
+        
+        with pytest.raises(stf.YamlParseError):
+            stf.parse_space_time_function_from_string(yaml_content)
+
+    def test_polybezier_error_handling(self):
+        """Test error handling for invalid polybezier."""
+        yaml_content = """
+type: sweep
+dimension: 3
+primitive:
+  type: ball
+  radius: 0.15
+  center: [0.0, 0.0, 0.0]
+  degree: 1
+transform:
+  type: polybezier
+  control_points:
+    - [0.0, 0.0, 0.0]
+    - [0.5, 0.0, 0.0]
+"""
+        
+        with pytest.raises(stf.YamlParseError):
+            stf.parse_space_time_function_from_string(yaml_content)
+
 
 if __name__ == "__main__":
     pytest.main([__file__])

@@ -269,4 +269,204 @@ transform:
     REQUIRE(func != nullptr);
 }
 
+TEST_CASE("YamlParser can parse polyline transform", "[yaml_parser]") {
+    std::string yaml_content = R"(
+type: sweep
+dimension: 3
+primitive:
+  type: ball
+  radius: 0.2
+  center: [0.0, 0.0, 0.0]
+  degree: 1
+transform:
+  type: polyline
+  points:
+    - [0.0, 0.0, 0.0]
+    - [1.0, 0.0, 0.0]
+    - [1.0, 1.0, 0.0]
+    - [1.0, 1.0, 1.0]
+)";
+
+    auto func = YamlParser<3>::parse_from_string(yaml_content);
+    REQUIRE(func != nullptr);
+    
+    // Test function evaluation at different times
+    std::array<Scalar, 3> pos = {0.5, 0.0, 0.0};
+    Scalar t = 0.25;
+    
+    Scalar value = func->value(pos, t);
+    REQUIRE(std::isfinite(value));
+}
+
+TEST_CASE("YamlParser can parse 2D polyline transform", "[yaml_parser]") {
+    std::string yaml_content = R"(
+type: sweep
+dimension: 2
+primitive:
+  type: ball
+  radius: 0.3
+  center: [0.0, 0.0]
+  degree: 1
+transform:
+  type: polyline
+  points:
+    - [0.0, 0.0]
+    - [2.0, 0.0]
+    - [2.0, 2.0]
+    - [0.0, 2.0]
+)";
+
+    auto func = YamlParser<2>::parse_from_string(yaml_content);
+    REQUIRE(func != nullptr);
+    
+    // Test function evaluation
+    std::array<Scalar, 2> pos = {1.0, 0.0};
+    Scalar t = 0.25;
+    
+    Scalar value = func->value(pos, t);
+    REQUIRE(std::isfinite(value));
+}
+
+TEST_CASE("YamlParser can parse polybezier with control points", "[yaml_parser]") {
+    std::string yaml_content = R"(
+type: sweep
+dimension: 3
+primitive:
+  type: ball
+  radius: 0.15
+  center: [0.0, 0.0, 0.0]
+  degree: 1
+transform:
+  type: polybezier
+  control_points:
+    - [0.0, 0.0, 0.0]
+    - [0.5, 0.0, 0.0]
+    - [0.5, 0.5, 0.0]
+    - [1.0, 0.5, 0.0]
+  follow_tangent: true
+)";
+
+    auto func = YamlParser<3>::parse_from_string(yaml_content);
+    REQUIRE(func != nullptr);
+    
+    // Test function evaluation
+    std::array<Scalar, 3> pos = {0.5, 0.25, 0.0};
+    Scalar t = 0.5;
+    
+    Scalar value = func->value(pos, t);
+    REQUIRE(std::isfinite(value));
+}
+
+TEST_CASE("YamlParser can parse polybezier from sample points", "[yaml_parser]") {
+    std::string yaml_content = R"(
+type: sweep
+dimension: 3
+primitive:
+  type: ball
+  radius: 0.1
+  center: [0.0, 0.0, 0.0]
+  degree: 1
+transform:
+  type: polybezier
+  sample_points:
+    - [0.0, 0.0, 0.0]
+    - [1.0, 0.0, 0.5]
+    - [2.0, 1.0, 0.5]
+    - [2.5, 2.0, 0.0]
+  follow_tangent: false
+)";
+
+    auto func = YamlParser<3>::parse_from_string(yaml_content);
+    REQUIRE(func != nullptr);
+    
+    // Test function evaluation
+    std::array<Scalar, 3> pos = {1.0, 0.5, 0.25};
+    Scalar t = 0.5;
+    
+    Scalar value = func->value(pos, t);
+    REQUIRE(std::isfinite(value));
+}
+
+TEST_CASE("YamlParser throws error for invalid polyline", "[yaml_parser]") {
+    std::string yaml_content = R"(
+type: sweep
+dimension: 3
+primitive:
+  type: ball
+  radius: 0.2
+  center: [0.0, 0.0, 0.0]
+  degree: 1
+transform:
+  type: polyline
+  points:
+    - [0.0, 0.0, 0.0]
+    # Only one point - should fail
+)";
+
+    REQUIRE_THROWS_AS(YamlParser<3>::parse_from_string(yaml_content), YamlParseError);
+}
+
+TEST_CASE("YamlParser throws error for invalid polybezier control points", "[yaml_parser]") {
+    std::string yaml_content = R"(
+type: sweep
+dimension: 3
+primitive:
+  type: ball
+  radius: 0.15
+  center: [0.0, 0.0, 0.0]
+  degree: 1
+transform:
+  type: polybezier
+  control_points:
+    - [0.0, 0.0, 0.0]
+    - [0.5, 0.0, 0.0]
+    # Only 2 points - should fail (need at least 4)
+)";
+
+    REQUIRE_THROWS_AS(YamlParser<3>::parse_from_string(yaml_content), YamlParseError);
+}
+
+TEST_CASE("YamlParser throws error for polybezier with wrong number of control points", "[yaml_parser]") {
+    std::string yaml_content = R"(
+type: sweep
+dimension: 3
+primitive:
+  type: ball
+  radius: 0.15
+  center: [0.0, 0.0, 0.0]
+  degree: 1
+transform:
+  type: polybezier
+  control_points:
+    - [0.0, 0.0, 0.0]
+    - [0.5, 0.0, 0.0]
+    - [0.5, 0.5, 0.0]
+    - [1.0, 0.5, 0.0]
+    - [1.5, 0.5, 0.0]
+    # 5 points - should fail (need (n*3)+1 points)
+)";
+
+    REQUIRE_THROWS_AS(YamlParser<3>::parse_from_string(yaml_content), YamlParseError);
+}
+
+TEST_CASE("YamlParser throws error for polybezier with insufficient sample points", "[yaml_parser]") {
+    std::string yaml_content = R"(
+type: sweep
+dimension: 3
+primitive:
+  type: ball
+  radius: 0.1
+  center: [0.0, 0.0, 0.0]
+  degree: 1
+transform:
+  type: polybezier
+  sample_points:
+    - [0.0, 0.0, 0.0]
+    - [1.0, 0.0, 0.5]
+    # Only 2 sample points - should fail (need at least 3)
+)";
+
+    REQUIRE_THROWS_AS(YamlParser<3>::parse_from_string(yaml_content), YamlParseError);
+}
+
 #endif

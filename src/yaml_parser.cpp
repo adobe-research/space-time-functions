@@ -172,6 +172,10 @@ std::unique_ptr<Transform<dim>> YamlParser<dim>::parse_transform(const YAML::Nod
         return parse_rotation(node);
     } else if (type == "compose") {
         return parse_compose(node, context);
+    } else if (type == "polyline") {
+        return parse_polyline(node);
+    } else if (type == "polybezier") {
+        return parse_polybezier(node);
     } else {
         throw YamlParseError("Unknown transform type: " + type);
     }
@@ -284,6 +288,113 @@ std::unique_ptr<Transform<dim>> YamlParser<dim>::parse_compose(const YAML::Node&
     }
     
     return std::move(result);
+}
+
+template <int dim>
+std::unique_ptr<Transform<dim>> YamlParser<dim>::parse_polyline(const YAML::Node& node) {
+    validate_required_field(node, "points");
+    
+    if (!node["points"].IsSequence()) {
+        throw YamlParseError("'points' field must be a sequence");
+    }
+    
+    std::vector<std::array<Scalar, dim>> points;
+    for (const auto& point_node : node["points"]) {
+        if (!point_node.IsSequence()) {
+            throw YamlParseError("Each point must be a sequence");
+        }
+        
+        if (point_node.size() != dim) {
+            throw YamlParseError("Each point must have exactly " + std::to_string(dim) + " coordinates");
+        }
+        
+        std::array<Scalar, dim> point;
+        for (int i = 0; i < dim; ++i) {
+            point[i] = point_node[i].as<Scalar>();
+        }
+        points.push_back(point);
+    }
+    
+    if (points.size() < 2) {
+        throw YamlParseError("Polyline must have at least 2 points");
+    }
+    
+    return std::make_unique<Polyline<dim>>(std::move(points));
+}
+
+template <int dim>
+std::unique_ptr<Transform<dim>> YamlParser<dim>::parse_polybezier(const YAML::Node& node) {
+    // Check if we have control_points (direct specification) or sample_points (from samples)
+    if (node["control_points"]) {
+        // Direct control points specification
+        if (!node["control_points"].IsSequence()) {
+            throw YamlParseError("'control_points' field must be a sequence");
+        }
+        
+        std::vector<std::array<Scalar, dim>> control_points;
+        for (const auto& point_node : node["control_points"]) {
+            if (!point_node.IsSequence()) {
+                throw YamlParseError("Each control point must be a sequence");
+            }
+            
+            if (point_node.size() != dim) {
+                throw YamlParseError("Each control point must have exactly " + std::to_string(dim) + " coordinates");
+            }
+            
+            std::array<Scalar, dim> point;
+            for (int i = 0; i < dim; ++i) {
+                point[i] = point_node[i].as<Scalar>();
+            }
+            control_points.push_back(point);
+        }
+        
+        if (control_points.size() < 4) {
+            throw YamlParseError("PolyBezier must have at least 4 control points");
+        }
+        
+        if ((control_points.size() - 1) % 3 != 0) {
+            throw YamlParseError("PolyBezier must have (n * 3) + 1 control points");
+        }
+        
+        bool follow_tangent = parse_bool(node, "follow_tangent", true);
+        
+        return std::make_unique<PolyBezier<dim>>(std::move(control_points), follow_tangent);
+        
+    } else if (node["sample_points"]) {
+        // Create from sample points
+        if (!node["sample_points"].IsSequence()) {
+            throw YamlParseError("'sample_points' field must be a sequence");
+        }
+        
+        std::vector<std::array<Scalar, dim>> sample_points;
+        for (const auto& point_node : node["sample_points"]) {
+            if (!point_node.IsSequence()) {
+                throw YamlParseError("Each sample point must be a sequence");
+            }
+            
+            if (point_node.size() != dim) {
+                throw YamlParseError("Each sample point must have exactly " + std::to_string(dim) + " coordinates");
+            }
+            
+            std::array<Scalar, dim> point;
+            for (int i = 0; i < dim; ++i) {
+                point[i] = point_node[i].as<Scalar>();
+            }
+            sample_points.push_back(point);
+        }
+        
+        if (sample_points.size() < 3) {
+            throw YamlParseError("PolyBezier from samples must have at least 3 sample points");
+        }
+        
+        bool follow_tangent = parse_bool(node, "follow_tangent", true);
+        
+        auto bezier = PolyBezier<dim>::from_samples(std::move(sample_points), follow_tangent);
+        return std::make_unique<PolyBezier<dim>>(std::move(bezier));
+        
+    } else {
+        throw YamlParseError("PolyBezier requires either 'control_points' or 'sample_points' field");
+    }
 }
 
 // Utility function implementations
