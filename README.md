@@ -218,6 +218,23 @@ stf::UnionFunction<Dim> f_union(f1, f2, smooth_distance);
 The `smoothing_distance` parameter controls the amount of smoothness, and `smoothing_distance = 0`
 corresponds to the regular (non-smooth) union operation.
 
+## Loading from YAML
+
+It is possible to define space-time functions using YAML files.
+
+```c++
+#include <stf/stf.h>
+
+// Parse from file
+auto func = stf::parse_space_time_function_from_file<3>("my_function.yaml");
+
+// Parse from string
+std::string yaml_content = "...";
+auto func = stf::parse_space_time_function_from_string<3>(yaml_content);
+```
+
+Please see [ymal_spec.md](yaml_spec.md) for details on the supported YAML format.
+
 ## Building
 
 This repo is designed to have a minimal amount of dependencies:
