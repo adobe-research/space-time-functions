@@ -233,7 +233,7 @@ std::string yaml_content = "...";
 auto func = stf::parse_space_time_function_from_string<3>(yaml_content);
 ```
 
-Please see [ymal_spec.md](yaml_spec.md) for details on the supported YAML format.
+Please see [doc/ymal_spec.md](doc/yaml_spec.md) for details on the supported YAML format.
 
 ## Building
 
