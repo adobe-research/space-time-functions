@@ -9,6 +9,8 @@
 #include <string>
 #include <cmath>
 #include <filesystem>
+#include <algorithm>
+#include <functional>
 
 namespace stf {
 
@@ -99,12 +101,25 @@ std::unique_ptr<SpaceTimeFunction<dim>> YamlParser<dim>::parse_offset_function(c
     // Parse the base function recursively - this will create its own ManagedSpaceTimeFunction
     auto base_function = parse_from_node(node["base_function"], yaml_file_dir);
     
-    // For now, we'll support simple constant offsets
-    Scalar offset = parse_scalar(node, "offset");
-    Scalar offset_derivative = parse_scalar(node, "offset_derivative");
+    // Parse offset function and its derivative
+    std::function<Scalar(Scalar)> offset_func;
+    std::function<Scalar(Scalar)> offset_deriv_func;
     
-    auto offset_func = [offset](Scalar t) { return offset; };
-    auto offset_deriv_func = [offset_derivative](Scalar t) { return offset_derivative; };
+    if (node["offset_function"]) {
+        offset_func = parse_single_variable_function(node, "offset_function");
+    } else {
+        // Backward compatibility: support constant offset
+        Scalar offset = parse_scalar(node, "offset");
+        offset_func = [offset](Scalar t) { return offset; };
+    }
+    
+    if (node["offset_derivative_function"]) {
+        offset_deriv_func = parse_single_variable_function(node, "offset_derivative_function");
+    } else {
+        // Backward compatibility: support constant offset derivative
+        Scalar offset_derivative = parse_scalar(node, "offset_derivative");
+        offset_deriv_func = [offset_derivative](Scalar t) { return offset_derivative; };
+    }
     
     // Store the base function and get raw pointer
     auto* base_function_ptr = context.add_function(std::move(base_function));
@@ -763,6 +778,160 @@ std::unique_ptr<ImplicitFunction<dim>> YamlParser<dim>::parse_implicit_union(con
     }
     
     return result;
+}
+
+template <int dim>
+std::function<Scalar(Scalar)> YamlParser<dim>::parse_single_variable_function(const YAML::Node& node, const std::string& field_name) {
+    if (!node[field_name]) {
+        throw YamlParseError("Missing required field: " + field_name);
+    }
+    
+    const auto& func_node = node[field_name];
+    validate_required_field(func_node, "type");
+    
+    std::string type = parse_string(func_node, "type");
+    
+    if (type == "constant") {
+        Scalar value = parse_scalar(func_node, "value");
+        return [value](Scalar t) { return value; };
+        
+    } else if (type == "linear") {
+        Scalar a = parse_scalar(func_node, "slope");
+        Scalar b = parse_scalar(func_node, "intercept");
+        return [a, b](Scalar t) { return a * t + b; };
+        
+    } else if (type == "polynomial") {
+        if (!func_node["coefficients"].IsSequence()) {
+            throw YamlParseError("'coefficients' field must be a sequence for polynomial function");
+        }
+        
+        std::vector<Scalar> coeffs;
+        for (const auto& coeff_node : func_node["coefficients"]) {
+            coeffs.push_back(coeff_node.as<Scalar>());
+        }
+        
+        if (coeffs.empty()) {
+            throw YamlParseError("Polynomial function requires at least one coefficient");
+        }
+        
+        return [coeffs](Scalar t) {
+            Scalar result = 0.0;
+            Scalar t_power = 1.0;
+            for (Scalar coeff : coeffs) {
+                result += coeff * t_power;
+                t_power *= t;
+            }
+            return result;
+        };
+        
+    } else if (type == "sinusoidal") {
+        Scalar amplitude = parse_scalar(func_node, "amplitude");
+        Scalar frequency = parse_scalar(func_node, "frequency");
+        Scalar phase = 0.0;
+        if (func_node["phase"]) {
+            phase = parse_scalar(func_node, "phase");
+        }
+        Scalar offset = 0.0;
+        if (func_node["offset"]) {
+            offset = parse_scalar(func_node, "offset");
+        }
+        
+        return [amplitude, frequency, phase, offset](Scalar t) {
+            return amplitude * std::sin(frequency * t + phase) + offset;
+        };
+        
+    } else if (type == "exponential") {
+        Scalar amplitude = parse_scalar(func_node, "amplitude");
+        Scalar rate = parse_scalar(func_node, "rate");
+        Scalar offset = 0.0;
+        if (func_node["offset"]) {
+            offset = parse_scalar(func_node, "offset");
+        }
+        
+        return [amplitude, rate, offset](Scalar t) {
+            return amplitude * std::exp(rate * t) + offset;
+        };
+        
+    } else if (type == "polybezier") {
+        if (!func_node["control_points"].IsSequence()) {
+            throw YamlParseError("'control_points' field must be a sequence for polybezier function");
+        }
+        
+        std::vector<std::pair<Scalar, Scalar>> control_points;
+        for (const auto& point_node : func_node["control_points"]) {
+            if (!point_node.IsSequence() || point_node.size() != 2) {
+                throw YamlParseError("Each control point in polybezier function must be [t, value]");
+            }
+            Scalar t = point_node[0].as<Scalar>();
+            Scalar value = point_node[1].as<Scalar>();
+            control_points.emplace_back(t, value);
+        }
+        
+        if (control_points.size() < 4) {
+            throw YamlParseError("Polybezier function requires at least 4 control points");
+        }
+        
+        if ((control_points.size() - 1) % 3 != 0) {
+            throw YamlParseError("Polybezier function must have (n * 3) + 1 control points");
+        }
+        
+        return [control_points](Scalar t) {
+            size_t num_segments = (control_points.size() - 1) / 3;
+            
+            // Find the segment containing t
+            size_t segment = 0;
+            Scalar local_t = t;
+            
+            // Handle extrapolation
+            if (t <= control_points.front().first) {
+                segment = 0;
+                local_t = 0.0;
+            } else if (t >= control_points.back().first) {
+                segment = num_segments - 1;
+                local_t = 1.0;
+            } else {
+                // Find which segment contains t
+                for (size_t i = 0; i < num_segments; ++i) {
+                    size_t p0_idx = i * 3;
+                    size_t p3_idx = (i + 1) * 3;
+                    
+                    Scalar t0 = control_points[p0_idx].first;
+                    Scalar t3 = control_points[p3_idx].first;
+                    
+                    if (t >= t0 && t <= t3) {
+                        segment = i;
+                        // Normalize t to [0,1] within this segment
+                        if (std::abs(t3 - t0) < 1e-10) {
+                            local_t = 0.0;
+                        } else {
+                            local_t = (t - t0) / (t3 - t0);
+                        }
+                        break;
+                    }
+                }
+            }
+            
+            // Get control points for this segment
+            size_t base_idx = segment * 3;
+            Scalar v0 = control_points[base_idx].second;
+            Scalar v1 = control_points[base_idx + 1].second;
+            Scalar v2 = control_points[base_idx + 2].second;
+            Scalar v3 = control_points[base_idx + 3].second;
+            
+            // Evaluate cubic Bézier curve: B(t) = (1-t)³P₀ + 3(1-t)²tP₁ + 3(1-t)t²P₂ + t³P₃
+            Scalar u = 1.0 - local_t;
+            Scalar u2 = u * u;
+            Scalar u3 = u2 * u;
+            Scalar t2 = local_t * local_t;
+            Scalar t3 = t2 * local_t;
+            
+            return u3 * v0 + 3.0 * u2 * local_t * v1 + 3.0 * u * t2 * v2 + t3 * v3;
+        };
+        
+    } else {
+        throw YamlParseError("Unknown single-variable function type: " + type + 
+                           ". Supported: constant, linear, polynomial, sinusoidal, exponential, polybezier");
+    }
 }
 
 // Explicit template instantiations

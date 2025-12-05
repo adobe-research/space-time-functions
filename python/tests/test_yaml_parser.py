@@ -1123,6 +1123,289 @@ transform:
         value = func.value(pos, t)
         assert abs(value) < float('inf')
 
+    def test_offset_function_single_variable_functions(self):
+        """Test offset function with single-variable functions."""
+        yaml_content = """
+type: offset
+dimension: 2
+base_function:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.3
+    center: [0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [1.0, 0.0]
+offset_function:
+  type: sinusoidal
+  amplitude: 0.2
+  frequency: 2.0
+  phase: 0.0
+  offset: 0.1
+offset_derivative_function:
+  type: sinusoidal
+  amplitude: 0.4
+  frequency: 2.0
+  phase: 1.5708
+  offset: 0.0
+"""
+        
+        func = stf.parse_space_time_function_from_string_2d(yaml_content)
+        assert func is not None
+        
+        # Test function evaluation at different times
+        pos = [0.5, 0.0]
+        
+        value_0 = func.value(pos, 0.0)
+        value_pi_4 = func.value(pos, 3.14159 / 4.0)
+        
+        assert abs(value_0) < float('inf')
+        assert abs(value_pi_4) < float('inf')
+        
+        # Values should be different due to sinusoidal offset
+        assert abs(value_0 - value_pi_4) > 1e-6
+
+    def test_offset_function_polynomial(self):
+        """Test offset function with polynomial offset."""
+        yaml_content = """
+type: offset
+dimension: 3
+base_function:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.4
+    center: [0.0, 0.0, 0.0]
+    degree: 1
+  transform:
+    type: scale
+    factors: [1.0, 1.0, 1.0]
+offset_function:
+  type: polynomial
+  coefficients: [0.1, 0.05, -0.01]
+offset_derivative_function:
+  type: polynomial
+  coefficients: [0.05, -0.02]
+"""
+        
+        func = stf.parse_space_time_function_from_string(yaml_content)
+        assert func is not None
+        
+        # Test function evaluation
+        pos = [0.2, 0.0, 0.0]
+        t = 2.0
+        
+        value = func.value(pos, t)
+        time_deriv = func.time_derivative(pos, t)
+        
+        assert abs(value) < float('inf')
+        assert abs(time_deriv) < float('inf')
+
+    def test_offset_function_polybezier(self):
+        """Test offset function with polybezier offset."""
+        yaml_content = """
+type: offset
+dimension: 2
+base_function:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.3
+    center: [0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [0.0, 0.0]
+offset_function:
+  type: polybezier
+  control_points:
+    - [0.0, 0.0]
+    - [0.2, 0.1]
+    - [0.3, 0.25]
+    - [0.5, 0.3]
+    - [0.7, 0.25]
+    - [0.8, 0.15]
+    - [1.0, 0.1]
+offset_derivative_function:
+  type: constant
+  value: 0.0
+"""
+        
+        func = stf.parse_space_time_function_from_string_2d(yaml_content)
+        assert func is not None
+        
+        # Test function evaluation at different times
+        pos = [0.0, 0.0]
+        
+        value_0 = func.value(pos, 0.0)
+        value_0_25 = func.value(pos, 0.25)
+        value_0_5 = func.value(pos, 0.5)
+        value_0_75 = func.value(pos, 0.75)
+        value_1 = func.value(pos, 1.0)
+        
+        assert abs(value_0) < float('inf')
+        assert abs(value_0_25) < float('inf')
+        assert abs(value_0_5) < float('inf')
+        assert abs(value_0_75) < float('inf')
+        assert abs(value_1) < float('inf')
+        
+        # Values should be different due to polybezier interpolation
+        assert abs(value_0 - value_0_5) > 1e-6
+        assert abs(value_0_5 - value_1) > 1e-6
+
+    def test_offset_function_exponential(self):
+        """Test offset function with exponential offset."""
+        yaml_content = """
+type: offset
+dimension: 3
+base_function:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.2
+    center: [0.0, 0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [0.0, 0.0, 1.0]
+offset_function:
+  type: exponential
+  amplitude: 0.1
+  rate: 0.5
+  offset: 0.05
+offset_derivative_function:
+  type: exponential
+  amplitude: 0.05
+  rate: 0.5
+  offset: 0.0
+"""
+        
+        func = stf.parse_space_time_function_from_string(yaml_content)
+        assert func is not None
+        
+        # Test function evaluation
+        pos = [0.0, 0.0, 0.5]
+        t = 1.0
+        
+        value = func.value(pos, t)
+        assert abs(value) < float('inf')
+
+    def test_offset_function_backward_compatibility(self):
+        """Test offset function with backward compatible constant offset."""
+        yaml_content = """
+type: offset
+dimension: 2
+base_function:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.3
+    center: [0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [0.5, 0.0]
+offset: 0.2
+offset_derivative: 0.0
+"""
+        
+        func = stf.parse_space_time_function_from_string_2d(yaml_content)
+        assert func is not None
+        
+        # Test function evaluation
+        pos = [0.0, 0.0]
+        t = 0.5
+        
+        value = func.value(pos, t)
+        assert abs(value) < float('inf')
+
+    def test_offset_function_error_handling(self):
+        """Test error handling for invalid single-variable functions."""
+        # Test unknown function type
+        yaml_unknown = """
+type: offset
+dimension: 2
+base_function:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.3
+    center: [0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [0.0, 0.0]
+offset_function:
+  type: unknown_function_type
+  value: 1.0
+offset_derivative_function:
+  type: constant
+  value: 0.0
+"""
+        
+        with pytest.raises(stf.YamlParseError):
+            stf.parse_space_time_function_from_string_2d(yaml_unknown)
+        
+        # Test polybezier with insufficient control points
+        yaml_insufficient = """
+type: offset
+dimension: 2
+base_function:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.3
+    center: [0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [0.0, 0.0]
+offset_function:
+  type: polybezier
+  control_points:
+    - [0.0, 0.0]
+    - [0.5, 0.3]
+    - [1.0, 0.1]
+offset_derivative_function:
+  type: constant
+  value: 0.0
+"""
+        
+        with pytest.raises(stf.YamlParseError):
+            stf.parse_space_time_function_from_string_2d(yaml_insufficient)
+        
+        # Test polybezier with invalid control point count
+        yaml_invalid_count = """
+type: offset
+dimension: 2
+base_function:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.3
+    center: [0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [0.0, 0.0]
+offset_function:
+  type: polybezier
+  control_points:
+    - [0.0, 0.0]
+    - [0.2, 0.1]
+    - [0.5, 0.3]
+    - [0.8, 0.2]
+    - [1.0, 0.1]
+offset_derivative_function:
+  type: constant
+  value: 0.0
+"""
+        
+        with pytest.raises(stf.YamlParseError):
+            stf.parse_space_time_function_from_string_2d(yaml_invalid_count)
+
     def test_union_function_smooth_distance(self):
         """Test union function with smooth_distance parameter."""
         yaml_content = """

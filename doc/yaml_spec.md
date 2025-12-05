@@ -50,9 +50,23 @@ type: offset
 dimension: <2|3>
 base_function:
   # Nested space-time function definition
+# Option 1: Function-based offset (recommended)
+offset_function:
+  # Single-variable function definition (see Single-Variable Functions)
+offset_derivative_function:
+  # Single-variable function definition for the derivative
+# Option 2: Constant offset (backward compatibility)
 offset: <scalar>              # Constant offset value
 offset_derivative: <scalar>   # Constant offset derivative
 ```
+
+#### Parameters
+
+- `base_function`: The space-time function to apply the offset to
+- `offset_function`: Time-dependent offset function f(t) (preferred method)
+- `offset_derivative_function`: Time derivative of the offset function f'(t)
+- `offset`: Constant offset value (backward compatibility)
+- `offset_derivative`: Constant offset derivative (backward compatibility)
 
 ### Union Function
 
@@ -289,6 +303,75 @@ sample_points_file: <path>   # Path to XYZ file with sample points
 follow_tangent: <boolean>    # Optional, defaults to true
 ```
 
+## Single-Variable Functions
+
+Some space-time function types (like offset functions) require single-variable functions of time `f(t)`. The YAML parser supports several types of single-variable functions:
+
+### Constant Function
+
+```yaml
+type: constant
+value: <scalar>
+```
+
+### Linear Function
+
+```yaml
+type: linear
+slope: <scalar>      # Coefficient 'a' in f(t) = a*t + b
+intercept: <scalar>  # Coefficient 'b' in f(t) = a*t + b
+```
+
+### Polynomial Function
+
+```yaml
+type: polynomial
+coefficients: [<c0>, <c1>, <c2>, ...]  # f(t) = c0 + c1*t + c2*t^2 + ...
+```
+
+### Sinusoidal Function
+
+```yaml
+type: sinusoidal
+amplitude: <scalar>   # Amplitude 'A' in f(t) = A*sin(ω*t + φ) + offset
+frequency: <scalar>   # Angular frequency 'ω'
+phase: <scalar>       # Phase 'φ' (optional, defaults to 0)
+offset: <scalar>      # DC offset (optional, defaults to 0)
+```
+
+### Exponential Function
+
+```yaml
+type: exponential
+amplitude: <scalar>   # Amplitude 'A' in f(t) = A*exp(r*t) + offset
+rate: <scalar>        # Rate 'r'
+offset: <scalar>      # DC offset (optional, defaults to 0)
+```
+
+### PolyBezier Function
+
+```yaml
+type: polybezier
+control_points:
+  - [<t0>, <value0>]  # First endpoint
+  - [<t1>, <value1>]  # First control point
+  - [<t2>, <value2>]  # Second control point
+  - [<t3>, <value3>]  # Second endpoint
+  # ... additional control points for more segments
+  # Total points must follow (n * 3) + 1 pattern
+```
+
+The polybezier function uses piecewise cubic Bézier curves for smooth interpolation. Each segment from point `i*3` to point `(i+1)*3` defines a cubic Bézier curve using 4 control points. This provides C¹ continuity and smooth derivatives, making it ideal for offset functions that require smooth time-dependent behavior.
+
+#### Control Point Pattern
+
+For a polybezier with `n` segments, you need `(n * 3) + 1` control points:
+- **1 segment**: 4 points `[P₀, C₁, C₂, P₁]`
+- **2 segments**: 7 points `[P₀, C₁, C₂, P₁, C₃, C₄, P₂]`
+- **3 segments**: 10 points `[P₀, C₁, C₂, P₁, C₃, C₄, P₂, C₅, C₆, P₃]`
+
+Where `P` are endpoint values and `C` are control points that define the curve shape.
+
 ## External File Support
 
 The STF YAML parser supports loading point data from external XYZ files for several use cases:
@@ -479,6 +562,107 @@ function2:
     type: translation
     vector: [0.0, 1.0]
 interpolation_type: smooth
+```
+
+### Offset Function Examples
+
+#### Sinusoidal Offset
+
+```yaml
+type: offset
+dimension: 3
+base_function:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.3
+    center: [0.0, 0.0, 0.0]
+  transform:
+    type: translation
+    vector: [1.0, 0.0, 0.0]
+offset_function:
+  type: sinusoidal
+  amplitude: 0.2
+  frequency: 2.0
+  phase: 0.0
+  offset: 0.1
+offset_derivative_function:
+  type: sinusoidal
+  amplitude: 0.4    # 0.2 * 2.0 (amplitude * frequency)
+  frequency: 2.0
+  phase: 1.5708     # π/2 phase shift for cosine
+  offset: 0.0
+```
+
+#### Polynomial Offset
+
+```yaml
+type: offset
+dimension: 2
+base_function:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.4
+    center: [0.0, 0.0]
+  transform:
+    type: scale
+    factors: [1.0, 1.0]
+offset_function:
+  type: polynomial
+  coefficients: [0.1, 0.05, -0.01]  # f(t) = 0.1 + 0.05*t - 0.01*t^2
+offset_derivative_function:
+  type: polynomial
+  coefficients: [0.05, -0.02]       # f'(t) = 0.05 - 0.02*t
+```
+
+#### PolyBezier Offset
+
+```yaml
+type: offset
+dimension: 3
+base_function:
+  type: sweep
+  primitive:
+    type: capsule
+    start: [0.0, 0.0, 0.0]
+    end: [0.0, 0.0, 1.0]
+    radius: 0.1
+  transform:
+    type: rotation
+    angle: 1.57
+    axis: [0.0, 1.0, 0.0]
+offset_function:
+  type: polybezier
+  control_points:
+    - [0.0, 0.0]    # Start point
+    - [0.2, 0.1]    # Control point 1
+    - [0.3, 0.25]   # Control point 2
+    - [0.5, 0.3]    # Mid point
+    - [0.7, 0.25]   # Control point 3
+    - [0.8, 0.15]   # Control point 4
+    - [1.0, 0.1]    # End point
+offset_derivative_function:
+  type: polynomial
+  coefficients: [0.0, 0.2, -0.1]  # Approximate derivative
+```
+
+#### Backward Compatible Constant Offset
+
+```yaml
+type: offset
+dimension: 2
+base_function:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.3
+    center: [0.0, 0.0]
+  transform:
+    type: translation
+    vector: [0.5, 0.0]
+offset: 0.2              # Constant offset
+offset_derivative: 0.0   # Constant derivative
 ```
 
 ### Implicit Union Examples

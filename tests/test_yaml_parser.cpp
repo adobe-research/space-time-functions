@@ -1193,6 +1193,291 @@ transform:
     }
 }
 
+TEST_CASE("YamlParser supports single-variable functions in offset function", "[yaml_parser]") {
+    SECTION("Offset function with sinusoidal offset") {
+        std::string yaml_content = R"(
+type: offset
+dimension: 2
+base_function:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.3
+    center: [0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [1.0, 0.0]
+offset_function:
+  type: sinusoidal
+  amplitude: 0.2
+  frequency: 2.0
+  phase: 0.0
+  offset: 0.1
+offset_derivative_function:
+  type: sinusoidal
+  amplitude: 0.4
+  frequency: 2.0
+  phase: 1.5708
+  offset: 0.0
+)";
+
+        auto func = YamlParser<2>::parse_from_string(yaml_content);
+        REQUIRE(func != nullptr);
+        
+        // Test function evaluation at different times
+        std::array<Scalar, 2> pos = {0.5, 0.0};
+        
+        Scalar value_0 = func->value(pos, 0.0);
+        Scalar value_pi_4 = func->value(pos, M_PI / 4.0);
+        
+        REQUIRE(std::isfinite(value_0));
+        REQUIRE(std::isfinite(value_pi_4));
+        
+        // Values should be different due to sinusoidal offset
+        REQUIRE(std::abs(value_0 - value_pi_4) > 1e-6);
+    }
+    
+    SECTION("Offset function with polynomial offset") {
+        std::string yaml_content = R"(
+type: offset
+dimension: 3
+base_function:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.4
+    center: [0.0, 0.0, 0.0]
+    degree: 1
+  transform:
+    type: scale
+    factors: [1.0, 1.0, 1.0]
+offset_function:
+  type: polynomial
+  coefficients: [0.1, 0.05, -0.01]
+offset_derivative_function:
+  type: polynomial
+  coefficients: [0.05, -0.02]
+)";
+
+        auto func = YamlParser<3>::parse_from_string(yaml_content);
+        REQUIRE(func != nullptr);
+        
+        // Test function evaluation
+        std::array<Scalar, 3> pos = {0.2, 0.0, 0.0};
+        Scalar t = 2.0;
+        
+        Scalar value = func->value(pos, t);
+        Scalar time_deriv = func->time_derivative(pos, t);
+        
+        REQUIRE(std::isfinite(value));
+        REQUIRE(std::isfinite(time_deriv));
+    }
+    
+    SECTION("Offset function with polybezier offset") {
+        std::string yaml_content = R"(
+type: offset
+dimension: 2
+base_function:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.3
+    center: [0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [0.0, 0.0]
+offset_function:
+  type: polybezier
+  control_points:
+    - [0.0, 0.0]
+    - [0.2, 0.1]
+    - [0.3, 0.25]
+    - [0.5, 0.3]
+    - [0.7, 0.25]
+    - [0.8, 0.15]
+    - [1.0, 0.1]
+offset_derivative_function:
+  type: constant
+  value: 0.0
+)";
+
+        auto func = YamlParser<2>::parse_from_string(yaml_content);
+        REQUIRE(func != nullptr);
+        
+        // Test function evaluation at different times
+        std::array<Scalar, 2> pos = {0.0, 0.0};
+        
+        Scalar value_0 = func->value(pos, 0.0);
+        Scalar value_0_25 = func->value(pos, 0.25);
+        Scalar value_0_5 = func->value(pos, 0.5);
+        Scalar value_0_75 = func->value(pos, 0.75);
+        Scalar value_1 = func->value(pos, 1.0);
+        
+        REQUIRE(std::isfinite(value_0));
+        REQUIRE(std::isfinite(value_0_25));
+        REQUIRE(std::isfinite(value_0_5));
+        REQUIRE(std::isfinite(value_0_75));
+        REQUIRE(std::isfinite(value_1));
+        
+        // Values should be different due to polybezier interpolation
+        REQUIRE(std::abs(value_0 - value_0_5) > 1e-6);
+        REQUIRE(std::abs(value_0_5 - value_1) > 1e-6);
+    }
+    
+    SECTION("Offset function with exponential offset") {
+        std::string yaml_content = R"(
+type: offset
+dimension: 3
+base_function:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.2
+    center: [0.0, 0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [0.0, 0.0, 1.0]
+offset_function:
+  type: exponential
+  amplitude: 0.1
+  rate: 0.5
+  offset: 0.05
+offset_derivative_function:
+  type: exponential
+  amplitude: 0.05
+  rate: 0.5
+  offset: 0.0
+)";
+
+        auto func = YamlParser<3>::parse_from_string(yaml_content);
+        REQUIRE(func != nullptr);
+        
+        // Test function evaluation
+        std::array<Scalar, 3> pos = {0.0, 0.0, 0.5};
+        Scalar t = 1.0;
+        
+        Scalar value = func->value(pos, t);
+        REQUIRE(std::isfinite(value));
+    }
+    
+    SECTION("Offset function with backward compatible constant offset") {
+        std::string yaml_content = R"(
+type: offset
+dimension: 2
+base_function:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.3
+    center: [0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [0.5, 0.0]
+offset: 0.2
+offset_derivative: 0.0
+)";
+
+        auto func = YamlParser<2>::parse_from_string(yaml_content);
+        REQUIRE(func != nullptr);
+        
+        // Test function evaluation
+        std::array<Scalar, 2> pos = {0.0, 0.0};
+        Scalar t = 0.5;
+        
+        Scalar value = func->value(pos, t);
+        REQUIRE(std::isfinite(value));
+    }
+}
+
+TEST_CASE("YamlParser handles single-variable function errors correctly", "[yaml_parser]") {
+    SECTION("Unknown single-variable function type") {
+        std::string yaml_content = R"(
+type: offset
+dimension: 2
+base_function:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.3
+    center: [0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [0.0, 0.0]
+offset_function:
+  type: unknown_function_type
+  value: 1.0
+offset_derivative_function:
+  type: constant
+  value: 0.0
+)";
+
+        REQUIRE_THROWS_AS(YamlParser<2>::parse_from_string(yaml_content), YamlParseError);
+    }
+    
+    SECTION("Polybezier with insufficient control points") {
+        std::string yaml_content = R"(
+type: offset
+dimension: 2
+base_function:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.3
+    center: [0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [0.0, 0.0]
+offset_function:
+  type: polybezier
+  control_points:
+    - [0.0, 0.0]
+    - [0.5, 0.3]
+    - [1.0, 0.1]
+offset_derivative_function:
+  type: constant
+  value: 0.0
+)";
+
+        REQUIRE_THROWS_AS(YamlParser<2>::parse_from_string(yaml_content), YamlParseError);
+    }
+    
+    SECTION("Polybezier with invalid control point count") {
+        std::string yaml_content = R"(
+type: offset
+dimension: 2
+base_function:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.3
+    center: [0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [0.0, 0.0]
+offset_function:
+  type: polybezier
+  control_points:
+    - [0.0, 0.0]
+    - [0.2, 0.1]
+    - [0.5, 0.3]
+    - [0.8, 0.2]
+    - [1.0, 0.1]
+offset_derivative_function:
+  type: constant
+  value: 0.0
+)";
+
+        REQUIRE_THROWS_AS(YamlParser<2>::parse_from_string(yaml_content), YamlParseError);
+    }
+}
+
 TEST_CASE("YamlParser supports smooth_distance in union function", "[yaml_parser]") {
     SECTION("Union function with smooth_distance") {
         std::string yaml_content = R"(

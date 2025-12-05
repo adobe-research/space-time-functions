@@ -203,6 +203,10 @@ private:
     // Helper function to load points from XYZ file
     static std::vector<std::array<Scalar, dim>> load_points_from_xyz(
         const std::string& file_path, const std::string& yaml_file_dir = "");
+    
+    // Helper function to parse single-variable functions from YAML
+    static std::function<Scalar(Scalar)> parse_single_variable_function(
+        const YAML::Node& node, const std::string& field_name);
 };
 
 // Convenience functions for common use cases
