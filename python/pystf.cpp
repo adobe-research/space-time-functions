@@ -3,7 +3,9 @@
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/array.h>
 #include <nanobind/stl/function.h>
+#include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
+#include <nanobind/stl/unique_ptr.h>
 
 namespace nb = nanobind;
 
@@ -573,6 +575,73 @@ NB_MODULE(pystf, m)
     transform.attr("Compose") = transform.attr("Compose3D");
     transform.attr("Polyline") = transform.attr("Polyline3D");
     transform.attr("PolyBezier") = transform.attr("PolyBezier3D");
+
+#ifdef STF_YAML_PARSER_ENABLED
+    // YAML parser functions
+    m.def(
+        "parse_space_time_function_from_file_2d",
+        &stf::parse_space_time_function_from_file<2>,
+        "filename"_a,
+        R"(Parse a 2D space-time function from a YAML file.
+
+:param filename: Path to the YAML file
+:return: Parsed 2D space-time function
+:raises YamlParseError: If parsing fails)");
+
+    m.def(
+        "parse_space_time_function_from_file_3d", 
+        &stf::parse_space_time_function_from_file<3>,
+        "filename"_a,
+        R"(Parse a 3D space-time function from a YAML file.
+
+:param filename: Path to the YAML file  
+:return: Parsed 3D space-time function
+:raises YamlParseError: If parsing fails)");
+
+    m.def(
+        "parse_space_time_function_from_string_2d",
+        &stf::parse_space_time_function_from_string<2>,
+        "yaml_string"_a,
+        R"(Parse a 2D space-time function from a YAML string.
+
+:param yaml_string: YAML content as string
+:return: Parsed 2D space-time function
+:raises YamlParseError: If parsing fails)");
+
+    m.def(
+        "parse_space_time_function_from_string_3d",
+        &stf::parse_space_time_function_from_string<3>, 
+        "yaml_string"_a,
+        R"(Parse a 3D space-time function from a YAML string.
+
+:param yaml_string: YAML content as string
+:return: Parsed 3D space-time function
+:raises YamlParseError: If parsing fails)");
+
+    // Convenience aliases for 3D (most common case)
+    m.def(
+        "parse_space_time_function_from_file",
+        &stf::parse_space_time_function_from_file<3>,
+        "filename"_a,
+        R"(Parse a 3D space-time function from a YAML file.
+
+:param filename: Path to the YAML file
+:return: Parsed 3D space-time function
+:raises YamlParseError: If parsing fails)");
+
+    m.def(
+        "parse_space_time_function_from_string",
+        &stf::parse_space_time_function_from_string<3>,
+        "yaml_string"_a,
+        R"(Parse a 3D space-time function from a YAML string.
+
+:param yaml_string: YAML content as string
+:return: Parsed 3D space-time function
+:raises YamlParseError: If parsing fails)");
+
+    // Expose the YamlParseError exception
+    nb::exception<stf::YamlParseError>(m, "YamlParseError", PyExc_RuntimeError);
+#endif
 
     // Add convenience aliases for backward compatibility in main module
     // These point to the 3D versions for backward compatibility
