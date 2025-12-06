@@ -205,8 +205,9 @@ private:
         const std::string& file_path, const std::string& yaml_file_dir = "");
     
     // Helper function to parse single-variable functions from YAML
-    static std::function<Scalar(Scalar)> parse_single_variable_function(
-        const YAML::Node& node, const std::string& field_name);
+    // Returns a pair of (function, derivative_function)
+    static std::pair<std::function<Scalar(Scalar)>, std::function<Scalar(Scalar)>> 
+        parse_single_variable_function_with_derivative(const YAML::Node& node, const std::string& field_name);
 };
 
 // Convenience functions for common use cases

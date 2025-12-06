@@ -50,23 +50,25 @@ type: offset
 dimension: <2|3>
 base_function:
   # Nested space-time function definition
-# Option 1: Function-based offset (recommended)
 offset_function:
   # Single-variable function definition (see Single-Variable Functions)
-offset_derivative_function:
-  # Single-variable function definition for the derivative
-# Option 2: Constant offset (backward compatibility)
-offset: <scalar>              # Constant offset value
-offset_derivative: <scalar>   # Constant offset derivative
+  # Derivative is computed analytically - no need to specify it manually
 ```
 
 #### Parameters
 
 - `base_function`: The space-time function to apply the offset to
-- `offset_function`: Time-dependent offset function f(t) (preferred method)
-- `offset_derivative_function`: Time derivative of the offset function f'(t)
-- `offset`: Constant offset value (backward compatibility)
-- `offset_derivative`: Constant offset derivative (backward compatibility)
+- `offset_function`: Time-dependent offset function f(t) - derivative computed automatically
+
+#### Automatic Derivative Computation
+
+The YAML parser automatically computes analytical derivatives for all supported function types:
+- **Constant**: f'(t) = 0
+- **Linear**: f'(t) = slope
+- **Polynomial**: f'(t) = Σ(i × aᵢ × t^(i-1))
+- **Sinusoidal**: f'(t) = A × ω × cos(ωt + φ)
+- **Exponential**: f'(t) = A × r × exp(rt)
+- **PolyBezier**: f'(t) = computed using cubic Bézier derivative formula with chain rule
 
 ### Union Function
 
@@ -586,12 +588,7 @@ offset_function:
   frequency: 2.0
   phase: 0.0
   offset: 0.1
-offset_derivative_function:
-  type: sinusoidal
-  amplitude: 0.4    # 0.2 * 2.0 (amplitude * frequency)
-  frequency: 2.0
-  phase: 1.5708     # π/2 phase shift for cosine
-  offset: 0.0
+  # Derivative computed automatically: 0.2 * 2.0 * cos(2.0*t + 0.0) = 0.4*cos(2t)
 ```
 
 #### Polynomial Offset
@@ -611,9 +608,7 @@ base_function:
 offset_function:
   type: polynomial
   coefficients: [0.1, 0.05, -0.01]  # f(t) = 0.1 + 0.05*t - 0.01*t^2
-offset_derivative_function:
-  type: polynomial
-  coefficients: [0.05, -0.02]       # f'(t) = 0.05 - 0.02*t
+  # Derivative computed automatically: f'(t) = 0.05 - 0.02*t
 ```
 
 #### PolyBezier Offset
@@ -642,12 +637,10 @@ offset_function:
     - [0.7, 0.25]   # Control point 3
     - [0.8, 0.15]   # Control point 4
     - [1.0, 0.1]    # End point
-offset_derivative_function:
-  type: polynomial
-  coefficients: [0.0, 0.2, -0.1]  # Approximate derivative
+  # Derivative computed automatically using cubic Bézier derivative formula
 ```
 
-#### Backward Compatible Constant Offset
+#### Constant Offset
 
 ```yaml
 type: offset
@@ -661,8 +654,10 @@ base_function:
   transform:
     type: translation
     vector: [0.5, 0.0]
-offset: 0.2              # Constant offset
-offset_derivative: 0.0   # Constant derivative
+offset_function:
+  type: constant
+  value: 0.2             # Constant offset value
+  # Derivative computed automatically: f'(t) = 0
 ```
 
 ### Implicit Union Examples

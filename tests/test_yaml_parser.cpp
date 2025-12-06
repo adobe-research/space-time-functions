@@ -1214,12 +1214,7 @@ offset_function:
   frequency: 2.0
   phase: 0.0
   offset: 0.1
-offset_derivative_function:
-  type: sinusoidal
-  amplitude: 0.4
-  frequency: 2.0
-  phase: 1.5708
-  offset: 0.0
+# Derivative computed automatically
 )";
 
         auto func = YamlParser<2>::parse_from_string(yaml_content);
@@ -1255,9 +1250,7 @@ base_function:
 offset_function:
   type: polynomial
   coefficients: [0.1, 0.05, -0.01]
-offset_derivative_function:
-  type: polynomial
-  coefficients: [0.05, -0.02]
+# Derivative computed automatically
 )";
 
         auto func = YamlParser<3>::parse_from_string(yaml_content);
@@ -1298,9 +1291,7 @@ offset_function:
     - [0.7, 0.25]
     - [0.8, 0.15]
     - [1.0, 0.1]
-offset_derivative_function:
-  type: constant
-  value: 0.0
+# Derivative computed automatically
 )";
 
         auto func = YamlParser<2>::parse_from_string(yaml_content);
@@ -1345,11 +1336,6 @@ offset_function:
   amplitude: 0.1
   rate: 0.5
   offset: 0.05
-offset_derivative_function:
-  type: exponential
-  amplitude: 0.05
-  rate: 0.5
-  offset: 0.0
 )";
 
         auto func = YamlParser<3>::parse_from_string(yaml_content);
@@ -1363,7 +1349,37 @@ offset_derivative_function:
         REQUIRE(std::isfinite(value));
     }
     
-    SECTION("Offset function with backward compatible constant offset") {
+    SECTION("Offset function with constant offset") {
+        std::string yaml_content = R"(
+type: offset
+dimension: 2
+base_function:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.3
+    center: [0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [0.5, 0.0]
+offset_function:
+  type: constant
+  value: 0.2
+)";
+
+        auto func = YamlParser<2>::parse_from_string(yaml_content);
+        REQUIRE(func != nullptr);
+        
+        // Test function evaluation
+        std::array<Scalar, 2> pos = {0.0, 0.0};
+        Scalar t = 0.5;
+        
+        Scalar value = func->value(pos, t);
+        REQUIRE(std::isfinite(value));
+    }
+    
+    SECTION("Offset function requires offset_function field") {
         std::string yaml_content = R"(
 type: offset
 dimension: 2
@@ -1381,15 +1397,7 @@ offset: 0.2
 offset_derivative: 0.0
 )";
 
-        auto func = YamlParser<2>::parse_from_string(yaml_content);
-        REQUIRE(func != nullptr);
-        
-        // Test function evaluation
-        std::array<Scalar, 2> pos = {0.0, 0.0};
-        Scalar t = 0.5;
-        
-        Scalar value = func->value(pos, t);
-        REQUIRE(std::isfinite(value));
+        REQUIRE_THROWS_AS(YamlParser<2>::parse_from_string(yaml_content), YamlParseError);
     }
 }
 
@@ -1411,9 +1419,6 @@ base_function:
 offset_function:
   type: unknown_function_type
   value: 1.0
-offset_derivative_function:
-  type: constant
-  value: 0.0
 )";
 
         REQUIRE_THROWS_AS(YamlParser<2>::parse_from_string(yaml_content), YamlParseError);
@@ -1439,9 +1444,6 @@ offset_function:
     - [0.0, 0.0]
     - [0.5, 0.3]
     - [1.0, 0.1]
-offset_derivative_function:
-  type: constant
-  value: 0.0
 )";
 
         REQUIRE_THROWS_AS(YamlParser<2>::parse_from_string(yaml_content), YamlParseError);
@@ -1469,9 +1471,6 @@ offset_function:
     - [0.5, 0.3]
     - [0.8, 0.2]
     - [1.0, 0.1]
-offset_derivative_function:
-  type: constant
-  value: 0.0
 )";
 
         REQUIRE_THROWS_AS(YamlParser<2>::parse_from_string(yaml_content), YamlParseError);
