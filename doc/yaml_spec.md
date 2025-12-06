@@ -212,12 +212,12 @@ Rotates around an axis (3D) or point (2D) over time.
 ```yaml
 # 2D rotation
 type: rotation
-angle: <scalar>              # Rotation angle in radians
+angle: <scalar>              # Rotation angle in degrees
 center: [<x>, <y>]           # Optional, defaults to origin
 
 # 3D rotation
 type: rotation
-angle: <scalar>              # Rotation angle in radians
+angle: <scalar>              # Rotation angle in degrees
 axis: [<x>, <y>, <z>]        # Rotation axis (normalized)
 center: [<x>, <y>, <z>]      # Optional, defaults to origin
 ```
@@ -535,7 +535,7 @@ functions:
       center: [0.0, 0.0, 0.0]
     transform:
       type: rotation
-      angle: 1.57
+      angle: 90.0
       axis: [0.0, 1.0, 0.0]
 smooth_distance: 0.3         # Smooth blending between functions
 ```
@@ -625,7 +625,7 @@ base_function:
     radius: 0.1
   transform:
     type: rotation
-    angle: 1.57
+    angle: 90.0
     axis: [0.0, 1.0, 0.0]
 offset_function:
   type: polybezier
