@@ -1,18 +1,121 @@
 #ifdef STF_YAML_PARSER_ENABLED
 
-    #include <stf/primitives/all.h>
-    #include <stf/transforms/all.h>
-    #include <stf/yaml_parser.h>
+#include <stf/stf.h>
 
-    #include <algorithm>
-    #include <cmath>
-    #include <filesystem>
-    #include <fstream>
-    #include <functional>
-    #include <sstream>
-    #include <string>
+#include <algorithm>
+#include <cmath>
+#include <filesystem>
+#include <fstream>
+#include <functional>
+#include <sstream>
+#include <string>
 
 namespace stf {
+
+// Utility function implementations
+template <int dim>
+std::array<Scalar, dim> YamlParser<dim>::parse_array(
+    const YAML::Node& node,
+    const std::string& field_name)
+{
+    if (!node[field_name]) {
+        throw YamlParseError("Missing required field: " + field_name);
+    }
+
+    if (!node[field_name].IsSequence()) {
+        throw YamlParseError("Field '" + field_name + "' must be a sequence");
+    }
+
+    if (node[field_name].size() != dim) {
+        throw YamlParseError(
+            "Field '" + field_name + "' must have exactly " + std::to_string(dim) + " elements");
+    }
+
+    std::array<Scalar, dim> result;
+    for (int i = 0; i < dim; ++i) {
+        result[i] = node[field_name][i].as<Scalar>();
+    }
+
+    return result;
+}
+
+template <int dim>
+Scalar YamlParser<dim>::parse_scalar(const YAML::Node& node, const std::string& field_name)
+{
+    if (!node[field_name]) {
+        throw YamlParseError("Missing required field: " + field_name);
+    }
+
+    return node[field_name].as<Scalar>();
+}
+
+template <int dim>
+std::string YamlParser<dim>::parse_string(const YAML::Node& node, const std::string& field_name)
+{
+    if (!node[field_name]) {
+        throw YamlParseError("Missing required field: " + field_name);
+    }
+
+    return node[field_name].as<std::string>();
+}
+
+template <int dim>
+int YamlParser<dim>::parse_int(const YAML::Node& node, const std::string& field_name)
+{
+    if (!node[field_name]) {
+        throw YamlParseError("Missing required field: " + field_name);
+    }
+
+    return node[field_name].as<int>();
+}
+
+template <int dim>
+int YamlParser<dim>::parse_int(
+    const YAML::Node& node,
+    const std::string& field_name,
+    int default_value)
+{
+    if (!node[field_name]) {
+        return default_value;
+    }
+
+    return node[field_name].as<int>();
+}
+
+template <int dim>
+bool YamlParser<dim>::parse_bool(
+    const YAML::Node& node,
+    const std::string& field_name,
+    bool default_value)
+{
+    if (!node[field_name]) {
+        return default_value;
+    }
+
+    return node[field_name].as<bool>();
+}
+
+template <int dim>
+void YamlParser<dim>::validate_dimension(const YAML::Node& node)
+{
+    if (node["dimension"]) {
+        int yaml_dim = node["dimension"].as<int>();
+        if (yaml_dim != dim) {
+            throw YamlParseError(
+                "Dimension mismatch: YAML specifies " + std::to_string(yaml_dim) +
+                " but parser is for " + std::to_string(dim) + "D");
+        }
+    }
+}
+
+template <int dim>
+void YamlParser<dim>::validate_required_field(const YAML::Node& node, const std::string& field_name)
+{
+    if (!node[field_name]) {
+        throw YamlParseError("Missing required field: " + field_name);
+    }
+}
+
 
 template <int dim>
 std::unique_ptr<SpaceTimeFunction<dim>> YamlParser<dim>::parse_from_file(
@@ -570,110 +673,6 @@ std::unique_ptr<SpaceTimeFunction<dim>> YamlParser<dim>::parse_interpolate_funct
         interpolation_derivative);
 }
 
-// Utility function implementations
-template <int dim>
-std::array<Scalar, dim> YamlParser<dim>::parse_array(
-    const YAML::Node& node,
-    const std::string& field_name)
-{
-    if (!node[field_name]) {
-        throw YamlParseError("Missing required field: " + field_name);
-    }
-
-    if (!node[field_name].IsSequence()) {
-        throw YamlParseError("Field '" + field_name + "' must be a sequence");
-    }
-
-    if (node[field_name].size() != dim) {
-        throw YamlParseError(
-            "Field '" + field_name + "' must have exactly " + std::to_string(dim) + " elements");
-    }
-
-    std::array<Scalar, dim> result;
-    for (int i = 0; i < dim; ++i) {
-        result[i] = node[field_name][i].as<Scalar>();
-    }
-
-    return result;
-}
-
-template <int dim>
-Scalar YamlParser<dim>::parse_scalar(const YAML::Node& node, const std::string& field_name)
-{
-    if (!node[field_name]) {
-        throw YamlParseError("Missing required field: " + field_name);
-    }
-
-    return node[field_name].as<Scalar>();
-}
-
-template <int dim>
-std::string YamlParser<dim>::parse_string(const YAML::Node& node, const std::string& field_name)
-{
-    if (!node[field_name]) {
-        throw YamlParseError("Missing required field: " + field_name);
-    }
-
-    return node[field_name].as<std::string>();
-}
-
-template <int dim>
-int YamlParser<dim>::parse_int(const YAML::Node& node, const std::string& field_name)
-{
-    if (!node[field_name]) {
-        throw YamlParseError("Missing required field: " + field_name);
-    }
-
-    return node[field_name].as<int>();
-}
-
-template <int dim>
-int YamlParser<dim>::parse_int(
-    const YAML::Node& node,
-    const std::string& field_name,
-    int default_value)
-{
-    if (!node[field_name]) {
-        return default_value;
-    }
-
-    return node[field_name].as<int>();
-}
-
-template <int dim>
-bool YamlParser<dim>::parse_bool(
-    const YAML::Node& node,
-    const std::string& field_name,
-    bool default_value)
-{
-    if (!node[field_name]) {
-        return default_value;
-    }
-
-    return node[field_name].as<bool>();
-}
-
-template <int dim>
-void YamlParser<dim>::validate_dimension(const YAML::Node& node)
-{
-    if (node["dimension"]) {
-        int yaml_dim = node["dimension"].as<int>();
-        if (yaml_dim != dim) {
-            throw YamlParseError(
-                "Dimension mismatch: YAML specifies " + std::to_string(yaml_dim) +
-                " but parser is for " + std::to_string(dim) + "D");
-        }
-    }
-}
-
-template <int dim>
-void YamlParser<dim>::validate_required_field(const YAML::Node& node, const std::string& field_name)
-{
-    if (!node[field_name]) {
-        throw YamlParseError("Missing required field: " + field_name);
-    }
-}
-
 template <int dim>
 std::vector<std::array<Scalar, dim>> YamlParser<dim>::load_points_from_xyz(
     const std::string& file_path,
@@ -754,7 +753,8 @@ std::unique_ptr<ImplicitFunction<dim>> YamlParser<dim>::parse_duchon(
     }
 
     // Parse optional parameters with defaults
-    std::array<Scalar, 3> center{0, 0, 0};
+    std::array<Scalar, dim> center;
+    center.fill(0);
     if (node["center"]) {
         center = parse_array(node, "center");
     }
@@ -1007,7 +1007,7 @@ YamlParser<dim>::parse_single_variable_function_with_derivative(
             throw YamlParseError("Polybezier function must have (n * 3) + 1 control points");
         }
 
-        return [control_points](Scalar t) {
+        auto func = [control_points](Scalar t) {
             size_t num_segments = (control_points.size() - 1) / 3;
 
             // Find the segment containing t
