@@ -92,15 +92,15 @@ Here is a list of supported spatial functions:
 // The `degree` argument specifies the distance degree (1 for L1, 2 for L2, etc.)
 stf::ImplicitBall<Dim> b(radius, center, degree);
 
-// Implicit Torus
+// Implicit Torus (3D only)
 // The torus is aligned with the XY plane.
-stf::ImplicitTorus<Dim> b(major_radius, minor_radius, center);
+stf::ImplicitTorus b(major_radius, minor_radius, center);
 
-// Implicit capsule
+// Implicit capsule (3D only)
 // It is defined as the offset surface of the line segment from p1 to p2.
 stf::ImplicitCapsule<Dim> b(radius, p1, p2);
 
-// VIPSS surface
+// VIPSS surface (3D only)
 // The VIPSS surface is defined by the Duchon interpolant of a set of points. See [1] for details.
 //
 // [1] Huang, Zhiyang, Nathan Carr, and Tao Ju. "Variational implicit point set surfaces." ACM
@@ -160,8 +160,8 @@ stf::Polyline<Dim> g(points);
 
 // Poly-Bezier curve
 // Note that control points consist of 3N + 1 points, where N is the number of Bezier curves.
-// Points with index in [3*k,3*(k+1) +1] define a cubic Bezier curve.
-stf::PolyBezier<Dim> g(control_points, degree);
+// Points with index in [3*k, 3*k+1, 3*k+2, 3*(k+1)] define a cubic Bezier curve.
+stf::PolyBezier<Dim> g(control_points, follow_tangent);
 ```
 
 It is often useful to combine multiple transforms together:
@@ -170,7 +170,7 @@ It is often useful to combine multiple transforms together:
 stf::Compose<Dim> g(g1, g2);
 ```
 
-For all transforms, the following are support:
+For all transforms, the following are supported:
 
 ```c++
 // Map a point `x` to its transformed position at time `t`
@@ -207,7 +207,7 @@ stf::OffsetFunction<Dim> f_offset(f,
 
 #### Space-time union function
 
-The space-time union function combines two space-time function via a (soft) space union operation.
+The space-time union function combines two space-time functions via a (soft) union operation.
 
 ```c++
 // Assume `f1` and `f2` are existing `stf::SpaceTimeFunction<Dim>` objects.
@@ -215,12 +215,25 @@ The space-time union function combines two space-time function via a (soft) spac
 stf::UnionFunction<Dim> f_union(f1, f2, smooth_distance);
 ```
 
-The `smoothing_distance` parameter controls the amount of smoothness, and `smoothing_distance = 0`
+The `smooth_distance` parameter controls the amount of smoothness, and `smooth_distance = 0`
 corresponds to the regular (non-smooth) union operation.
+
+#### Interpolate function
+
+The interpolate function creates a new space-time function by interpolating between two existing space-time functions over time.
+
+```c++
+// Assume `f1` and `f2` are existing `stf::SpaceTimeFunction<Dim>` objects.
+
+auto interpolation_func = [](Scalar t) { return t; }; // Linear interpolation
+auto interpolation_deriv = [](Scalar t) { return 1.0; };
+
+stf::InterpolateFunction<Dim> f_interp(f1, f2, interpolation_func, interpolation_deriv);
+```
 
 ## Loading from YAML
 
-It is possible to define space-time functions using YAML files.
+It is possible to define space-time functions using YAML files. This feature requires building with `STF_YAML_PARSER=ON`.
 
 ```c++
 #include <stf/stf.h>
@@ -233,7 +246,29 @@ std::string yaml_content = "...";
 auto func = stf::parse_space_time_function_from_string<3>(yaml_content);
 ```
 
-Please see [doc/ymal_spec.md](doc/yaml_spec.md) for details on the supported YAML format.
+The YAML parser supports all space-time function types, primitives, transforms, and includes automatic derivative computation for offset functions. External file loading is supported for point data (XYZ files) and Duchon coefficients.
+
+Please see [doc/yaml_spec.md](doc/yaml_spec.md) for details on the supported YAML format.
+
+## Python Bindings
+
+Python bindings are available when building with `STF_PYTHON_BINDING=ON`. The Python API mirrors the C++ API:
+
+```python
+import space_time_functions as stf
+
+# Parse from YAML file
+func = stf.parse_space_time_function_from_file_3d("my_function.yaml")
+
+# Parse from YAML string
+yaml_content = "..."
+func = stf.parse_space_time_function_from_string_3d(yaml_content)
+
+# Evaluate the function
+pos = [0.0, 0.0, 0.0]
+t = 0.5
+value = func.value(pos, t)
+```
 
 ## Building
 
@@ -241,7 +276,9 @@ This repo is designed to have a minimal amount of dependencies:
 
 - C++20 compatible compiler
 - CMake 3.28 or higher
-- (Optional) Catch2 for unit tests only
+- (Optional) yaml-cpp for YAML parser support
+- (Optional) nanobind for Python bindings
+- (Optional) Catch2 for unit tests
 
 To build the library:
 
@@ -250,5 +287,17 @@ mkdir build
 cd build
 cmake ..
 cmake --build .
+```
+
+### Build Options
+
+- `STF_YAML_PARSER=ON`: Enable YAML parser support (requires yaml-cpp)
+- `STF_PYTHON_BINDING=ON`: Build Python bindings (requires nanobind)
+- `STF_BUILD_TESTS=ON`: Build unit tests (requires Catch2)
+
+Example with all features enabled:
+
+```sh
+cmake -DSTF_YAML_PARSER=ON -DSTF_PYTHON_BINDING=ON -DSTF_BUILD_TESTS=ON ..
 ```
 
