@@ -632,6 +632,26 @@ std::unique_ptr<SpaceTimeFunction<dim>> YamlParser<dim>::parse_interpolate_funct
         interpolation_type = parse_string(node, "interpolation_type");
     }
 
+    // Parse cosine interpolation parameters (optional)
+    // Default num_periods = 0.5 so that the generalized formula reduces to standard cosine
+    Scalar num_periods = 0.5;
+    Scalar phase = 0.0;
+    
+    if (node["num_periods"]) {
+        num_periods = node["num_periods"].as<Scalar>();
+        if (num_periods <= 0) {
+            throw YamlParseError("num_periods must be positive");
+        }
+    }
+    
+    if (node["phase"]) {
+        phase = node["phase"].as<Scalar>();
+    }
+    
+    // Amplitude and offset are fixed (not exposed to users)
+    constexpr Scalar amplitude = 1.0;
+    constexpr Scalar offset = 0.0;
+
     // Create interpolation functions based on type
     std::function<Scalar(Scalar)> interpolation_func;
     std::function<Scalar(Scalar)> interpolation_derivative;
@@ -640,30 +660,33 @@ std::unique_ptr<SpaceTimeFunction<dim>> YamlParser<dim>::parse_interpolate_funct
         interpolation_func = [](Scalar t) { return t; };
         interpolation_derivative = [](Scalar t) { return 1.0; };
     } else if (interpolation_type == "smooth") {
-        // Smooth step interpolation: 3t² - 2t³
+        // Smooth step interpolation using polynomial: 3t² - 2t³
         interpolation_func = [](Scalar t) { return 3 * t * t - 2 * t * t * t; };
         interpolation_derivative = [](Scalar t) { return 6 * t - 6 * t * t; };
-    } else if (interpolation_type == "smoother") {
-        // Smoother step interpolation: 6t⁵ - 15t⁴ + 10t³
-        interpolation_func = [](Scalar t) {
-            return 6 * t * t * t * t * t - 15 * t * t * t * t + 10 * t * t * t;
-        };
-        interpolation_derivative = [](Scalar t) {
-            return 30 * t * t * t * t - 60 * t * t * t + 30 * t * t;
-        };
     } else if (interpolation_type == "cosine") {
-        // Cosine interpolation: (1 - cos(πt)) / 2
-        interpolation_func = [](Scalar t) { return (1.0 - std::cos(M_PI * t)) / 2.0; };
-        interpolation_derivative = [](Scalar t) { return M_PI * std::sin(M_PI * t) / 2.0; };
+        // Cosine interpolation using generalized sinusoidal function
+        // Formula: offset + amplitude × (sin(t × n × 2π + phase - π/2) + 1) / 2
+        // With default parameters (n=0.5, A=1, φ=0, offset=0), this reduces to:
+        //   (sin(πt - π/2) + 1) / 2 = (1 - cos(πt)) / 2  (standard cosine interpolation)
+        interpolation_func = [num_periods, amplitude, phase, offset](Scalar t) {
+            return offset + amplitude * 
+                (std::sin(t * num_periods * 2.0 * M_PI + phase - M_PI / 2.0) + 1.0) / 2.0;
+        };
+        // Derivative: d/dt[offset + A × (sin(t × n × 2π + φ - π/2) + 1) / 2]
+        //           = A × n × π × cos(t × n × 2π + φ - π/2)
+        interpolation_derivative = [num_periods, amplitude, phase](Scalar t) {
+            return amplitude * num_periods * M_PI * 
+                std::cos(t * num_periods * 2.0 * M_PI + phase - M_PI / 2.0);
+        };
     } else if (interpolation_type == "custom") {
         // For custom interpolation, we would need to parse mathematical expressions
         // For now, throw an error suggesting this isn't supported
         throw YamlParseError("Custom interpolation functions are not yet supported in YAML. Use "
-                             "'linear', 'smooth', 'smoother', or 'cosine'.");
+                             "'linear', 'smooth', or 'cosine'.");
     } else {
         throw YamlParseError(
             "Unknown interpolation type: " + interpolation_type +
-            ". Supported types: 'linear', 'smooth', 'smoother', 'cosine'");
+            ". Supported types: 'linear', 'smooth', 'cosine'");
     }
 
     return std::make_unique<InterpolateFunction<dim>>(

@@ -91,7 +91,7 @@ smooth_distance: <scalar>    # Optional, defaults to 0.0 (hard union)
 
 ### Interpolate Function
 
-Linearly interpolates between two space-time functions over time.
+Interpolates between two space-time functions over time with various interpolation curves.
 
 ```yaml
 type: interpolate
@@ -101,6 +101,61 @@ function1:
 function2:
   # Second space-time function (at t=1)
 interpolation_type: <linear|smooth|cosine>  # Optional, defaults to linear
+# Cosine interpolation parameters (only used with cosine type):
+num_periods: <scalar>   # Optional, defaults to 0.5
+phase: <scalar>         # Optional, defaults to 0 (in radians)
+```
+
+#### Parameters
+
+- `function1`: The first space-time function (corresponds to t=0 or minimum of oscillation)
+- `function2`: The second space-time function (corresponds to t=1 or maximum of oscillation)
+- `interpolation_type`: The type of interpolation curve (optional, defaults to "linear")
+  - `linear`: Linear interpolation (f(t) = t)
+  - `smooth`: Smooth polynomial interpolation (f(t) = 3t² - 2t³)
+  - `cosine`: Cosine-based interpolation with configurable periodic behavior
+
+#### Interpolation Type Details
+
+**Linear Interpolation:**
+```
+f(t) = t
+f'(t) = 1
+```
+Simple linear transition from function1 to function2.
+
+**Smooth Interpolation:**
+```
+f(t) = 3t² - 2t³
+f'(t) = 6t - 6t²
+```
+Polynomial smoothstep with zero derivative at t=0 and t=1 for smooth transitions.
+
+**Cosine Interpolation:**
+
+The `cosine` interpolation type supports additional parameters for fine control:
+
+- `num_periods` (default: 0.5): Number of oscillation periods
+  - Default value of 0.5 produces a single smooth transition (standard cosine)
+  - Value of 1 produces a full oscillation from function1 → function2 → function1
+  - Values > 1 create multiple periodic oscillations
+  
+- `phase` (default: 0): Phase shift in radians
+  - Shifts the oscillation pattern in time
+  - Useful for adjusting the starting point of oscillation
+
+#### Cosine Interpolation Formula
+
+All cosine interpolation uses the formula:
+```
+f(t) = (sin(t × num_periods × 2π + phase - π/2) + 1) / 2
+f'(t) = num_periods × π × cos(t × num_periods × 2π + phase - π/2)
+```
+
+With default parameters (num_periods = 0.5, phase = 0), this reduces to:
+```
+f(t) = (sin(πt - π/2) + 1) / 2 = (1 - cos(πt)) / 2   (standard cosine interpolation)
+f'(t) = π × sin(πt) / 2
 ```
 
 ## Primitive Types
@@ -540,7 +595,7 @@ functions:
 smooth_distance: 0.3         # Smooth blending between functions
 ```
 
-### Interpolation Between Two Functions
+### Smooth Polynomial Interpolation
 
 ```yaml
 type: interpolate
@@ -564,6 +619,108 @@ function2:
     type: translation
     vector: [0.0, 1.0]
 interpolation_type: smooth
+# Uses polynomial: f(t) = 3t² - 2t³
+```
+
+### Simple Cosine Interpolation
+
+```yaml
+type: interpolate
+dimension: 2
+function1:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.3
+    center: [0.0, 0.0]
+  transform:
+    type: translation
+    vector: [1.0, 0.0]
+function2:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.4
+    center: [0.0, 0.0]
+  transform:
+    type: translation
+    vector: [-1.0, 0.0]
+interpolation_type: cosine
+# Uses default: f(t) = (1 - cos(πt)) / 2
+```
+
+### Periodic Cosine Interpolation (3 Oscillations)
+
+```yaml
+type: interpolate
+dimension: 3
+function1:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.045
+    center: [0.0, 0.0, 0.0]
+    degree: 1
+  transform:
+    type: polybezier
+    sample_points:
+      - [0.0, 0.0, 0.0]
+      - [1.0, 0.0, 0.0]
+      - [1.0, 1.0, 0.0]
+    follow_tangent: false
+function2:
+  type: sweep
+  primitive:
+    type: implicit_union
+    primitives:
+      - type: ball
+        radius: 0.02
+        center: [0.0, 0.0, 0.03]
+        degree: 1
+      - type: ball
+        radius: 0.02
+        center: [0.0, 0.0, -0.03]
+        degree: 1
+    smooth_distance: 0.002
+  transform:
+    type: polybezier
+    sample_points:
+      - [0.0, 0.0, 0.0]
+      - [1.0, 0.0, 0.0]
+      - [1.0, 1.0, 0.0]
+    follow_tangent: false
+interpolation_type: cosine
+num_periods: 3  # Oscillates 3 times between function1 and function2
+```
+
+### Periodic Interpolation with Phase Shift
+
+```yaml
+type: interpolate
+dimension: 3
+function1:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.3
+    center: [0.0, 0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [1.0, 0.0, 0.0]
+function2:
+  type: sweep
+  primitive:
+    type: ball
+    radius: 0.5
+    center: [0.0, 0.0, 0.0]
+    degree: 1
+  transform:
+    type: translation
+    vector: [-1.0, 0.0, 0.0]
+interpolation_type: cosine
+num_periods: 3        # 3 complete oscillations
+phase: 1.5708         # Phase shift of π/2 radians (90 degrees)
 ```
 
 ### Offset Function Examples
