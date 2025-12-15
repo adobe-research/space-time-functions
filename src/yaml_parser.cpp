@@ -366,15 +366,18 @@ std::unique_ptr<ImplicitFunction<dim>> YamlParser<dim>::parse_torus(const YAML::
 {
     if constexpr (dim != 3) {
         throw YamlParseError("Torus primitive is only supported in 3D");
-    }
+    } else {
+        Scalar major_radius = parse_scalar(node, "major_radius");
+        Scalar minor_radius = parse_scalar(node, "minor_radius");
+        std::array<Scalar, dim> center = parse_array(node, "center");
+        
+        // Parse optional normal direction (defaults to {0, 0, 1})
+        std::array<Scalar, dim> normal = {0, 0, 1};
+        if (node["normal"]) {
+            normal = parse_array(node, "normal");
+        }
 
-    Scalar major_radius = parse_scalar(node, "major_radius");
-    Scalar minor_radius = parse_scalar(node, "minor_radius");
-    std::array<Scalar, dim> center = parse_array(node, "center");
-
-    // ImplicitTorus is not templated, it's specifically for 3D
-    if constexpr (dim == 3) {
-        return std::make_unique<ImplicitTorus>(major_radius, minor_radius, center);
+        return std::make_unique<ImplicitTorus>(major_radius, minor_radius, center, normal);
     }
 }
 

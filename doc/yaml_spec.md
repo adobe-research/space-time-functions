@@ -185,13 +185,50 @@ radius: <scalar>
 
 ### Torus (3D only)
 
-A torus primitive with major and minor radii.
+A torus primitive with major and minor radii. The torus lies in a plane orthogonal to the specified normal direction.
 
 ```yaml
 type: torus
 major_radius: <scalar>
 minor_radius: <scalar>
 center: [<x>, <y>, <z>]
+normal: [<x>, <y>, <z>]  # Optional, defaults to [0, 0, 1] (torus in XY plane)
+```
+
+#### Parameters
+
+- `major_radius`: Distance from the center of the tube to the center of the torus
+- `minor_radius`: Radius of the tube
+- `center`: Center point of the torus
+- `normal`: Normal direction (torus is orthogonal to this). Defaults to [0, 0, 1], placing the torus in the XY plane
+
+#### Examples
+
+**Standard torus in XY plane:**
+```yaml
+type: torus
+major_radius: 0.8
+minor_radius: 0.2
+center: [0.0, 0.0, 0.0]
+# normal defaults to [0, 0, 1]
+```
+
+**Torus in YZ plane (normal along X-axis):**
+```yaml
+type: torus
+major_radius: 0.8
+minor_radius: 0.2
+center: [0.0, 0.0, 0.0]
+normal: [1.0, 0.0, 0.0]
+```
+
+**Torus oriented at an angle:**
+```yaml
+type: torus
+major_radius: 0.8
+minor_radius: 0.2
+center: [0.0, 0.0, 0.0]
+normal: [0.707, 0.707, 0.0]  # 45 degrees between X and Y axes
 ```
 
 ### Duchon (3D only)
