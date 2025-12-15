@@ -205,4 +205,128 @@ TEST_CASE("primitive", "[stf]")
             REQUIRE_THAT(v, Catch::Matchers::WithinAbs(r, 1e-6));
         }
     }
+
+    SECTION("torus - default orientation (XY plane)")
+    {
+        // Torus with major radius 1.0, minor radius 0.3, centered at origin
+        // Default normal is {0, 0, 1}, so torus lies in XY plane
+        stf::ImplicitTorus torus(1.0, 0.3, {0, 0, 0});
+
+        // Center should be at distance = major_radius - minor_radius = 0.7
+        REQUIRE_THAT(torus.value({0, 0, 0}), Catch::Matchers::WithinAbs(0.7, 1e-6));
+
+        // Point on the torus tube (major circle at radius 1.0, minor circle at radius 0.3)
+        // On XY plane at (1.3, 0, 0) should be on surface
+        REQUIRE_THAT(torus.value({1.3, 0, 0}), Catch::Matchers::WithinAbs(0.0, 1e-5));
+
+        // On XY plane at (0.7, 0, 0) should be on surface (inner side)
+        REQUIRE_THAT(torus.value({0.7, 0, 0}), Catch::Matchers::WithinAbs(0.0, 1e-5));
+
+        // Point on major circle in XY plane at (1, 0, 0.3) should be on surface
+        REQUIRE_THAT(torus.value({1, 0, 0.3}), Catch::Matchers::WithinAbs(0.0, 1e-5));
+
+        // Point inside torus tube
+        REQUIRE(torus.value({1.0, 0, 0}) < 0);
+
+        // Point far outside
+        REQUIRE(torus.value({5, 5, 5}) > 0);
+
+        // Check gradients at various points
+        check_gradient(torus, {1.3, 0, 0});
+        check_gradient(torus, {0.7, 0, 0});
+        check_gradient(torus, {1, 0, 0.3});
+        check_gradient(torus, {1, 0.5, 0.2});
+        check_gradient(torus, {0, 1, 0.15});
+    }
+
+    SECTION("torus - YZ plane (normal along X)")
+    {
+        // Torus with normal along X-axis {1, 0, 0}
+        // Should lie in YZ plane
+        stf::ImplicitTorus torus(1.0, 0.3, {0, 0, 0}, {1, 0, 0});
+
+        // Center should be at distance 0.7
+        REQUIRE_THAT(torus.value({0, 0, 0}), Catch::Matchers::WithinAbs(0.7, 1e-6));
+
+        // Points on the torus surface in YZ plane
+        REQUIRE_THAT(torus.value({0, 1.3, 0}), Catch::Matchers::WithinAbs(0.0, 1e-5));
+        REQUIRE_THAT(torus.value({0, 0.7, 0}), Catch::Matchers::WithinAbs(0.0, 1e-5));
+        REQUIRE_THAT(torus.value({0.3, 1.0, 0}), Catch::Matchers::WithinAbs(0.0, 1e-5));
+
+        // Check gradients
+        check_gradient(torus, {0, 1.3, 0});
+        check_gradient(torus, {0, 0.7, 0});
+        check_gradient(torus, {0.3, 1.0, 0});
+        check_gradient(torus, {0.2, 0, 1.0});
+    }
+
+    SECTION("torus - XZ plane (normal along Y)")
+    {
+        // Torus with normal along Y-axis {0, 1, 0}
+        // Should lie in XZ plane
+        stf::ImplicitTorus torus(1.0, 0.3, {0, 0, 0}, {0, 1, 0});
+
+        // Center should be at distance 0.7
+        REQUIRE_THAT(torus.value({0, 0, 0}), Catch::Matchers::WithinAbs(0.7, 1e-6));
+
+        // Points on the torus surface in XZ plane
+        REQUIRE_THAT(torus.value({1.3, 0, 0}), Catch::Matchers::WithinAbs(0.0, 1e-5));
+        REQUIRE_THAT(torus.value({0.7, 0, 0}), Catch::Matchers::WithinAbs(0.0, 1e-5));
+        REQUIRE_THAT(torus.value({1.0, 0.3, 0}), Catch::Matchers::WithinAbs(0.0, 1e-5));
+
+        // Check gradients
+        check_gradient(torus, {1.3, 0, 0});
+        check_gradient(torus, {0.7, 0, 0});
+        check_gradient(torus, {1.0, 0.3, 0});
+        check_gradient(torus, {0, 0.2, 1.0});
+    }
+
+    SECTION("torus - angled orientation")
+    {
+        // Torus at 45 degrees between X and Y axes
+        stf::Scalar sqrt2_inv = 1.0 / std::sqrt(2.0);
+        stf::ImplicitTorus torus(1.0, 0.3, {0, 0, 0}, {sqrt2_inv, sqrt2_inv, 0});
+
+        // Center should still be at distance 0.7
+        REQUIRE_THAT(torus.value({0, 0, 0}), Catch::Matchers::WithinAbs(0.7, 1e-6));
+
+        // The torus should be symmetric about the Z-axis for this orientation
+        // Check gradients at various points
+        check_gradient(torus, {1.0, 0, 0});
+        check_gradient(torus, {0, 1.0, 0});
+        check_gradient(torus, {0.5, 0.5, 0.3});
+        check_gradient(torus, {-0.5, 0.5, 0.2});
+    }
+
+    SECTION("torus - translated center")
+    {
+        // Torus centered at (1, 2, 3) with default normal
+        stf::ImplicitTorus torus(1.0, 0.3, {1, 2, 3});
+
+        // Center should be at distance 0.7
+        REQUIRE_THAT(torus.value({1, 2, 3}), Catch::Matchers::WithinAbs(0.7, 1e-6));
+
+        // Point on surface (offset from center)
+        REQUIRE_THAT(torus.value({2.3, 2, 3}), Catch::Matchers::WithinAbs(0.0, 1e-5));
+
+        // Check gradients
+        check_gradient(torus, {2.3, 2, 3});
+        check_gradient(torus, {1, 3, 3.3});
+        check_gradient(torus, {0.5, 2, 2.8});
+    }
+
+    SECTION("torus - small and large")
+    {
+        // Small torus
+        stf::ImplicitTorus small_torus(0.5, 0.1, {0, 0, 0});
+        REQUIRE_THAT(small_torus.value({0, 0, 0}), Catch::Matchers::WithinAbs(0.4, 1e-6));
+        check_gradient(small_torus, {0.6, 0, 0});
+        check_gradient(small_torus, {0.5, 0, 0.1});
+
+        // Large torus
+        stf::ImplicitTorus large_torus(5.0, 1.0, {0, 0, 0});
+        REQUIRE_THAT(large_torus.value({0, 0, 0}), Catch::Matchers::WithinAbs(4.0, 1e-6));
+        check_gradient(large_torus, {6.0, 0, 0});
+        check_gradient(large_torus, {5.0, 0, 1.0});
+    }
 }
