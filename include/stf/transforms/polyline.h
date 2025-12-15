@@ -12,14 +12,14 @@
 namespace stf {
 
 /**
- * @brief A transformation that follows a polyline and uses Bishop frames for orientation.
+ * @brief A transformation that follows a polyline with optional Bishop frames for orientation.
  *
  * This class represents a piecewise linear curve (polyline) in N-dimensional space and provides
- * transformation, velocity, and Jacobian computations along the polyline using Bishop frames for
- * orientation.
+ * transformation, velocity, and Jacobian computations along the polyline. When follow_tangent is
+ * enabled, Bishop frames are used for orientation.
  *
- * @note An initial transformation is applied to align the z-axis in 3D or the y-axis in 2D with the
- * first segment.
+ * @note When follow_tangent is true, an initial transformation is applied to align the z-axis in 3D
+ * or the y-axis in 2D with the first segment. When false, identity transformations are used.
  *
  * @tparam dim The dimension of the space (2 or 3 supported).
  */
@@ -30,15 +30,23 @@ public:
     /**
      * @brief Construct a Polyline from a sequence of points.
      * @param points The points defining the polyline. Must contain at least 2 points.
+     * @param follow_tangent If true, the transform will add rotation so that the z-axis (3D) of
+     * the input coordinate system follows the tangent of the polyline.
+     *
      * @throws std::runtime_error if fewer than 2 points are provided.
      */
-    explicit Polyline(std::vector<std::array<Scalar, dim>> points)
+    explicit Polyline(std::vector<std::array<Scalar, dim>> points, bool follow_tangent = true)
         : m_points(std::move(points))
+        , m_follow_tangent(follow_tangent)
     {
         if (m_points.size() < 2) {
             throw std::runtime_error("Polyline must consist of at least 2 points.");
         }
-        initialize_bishop_frames();
+        if (m_follow_tangent) {
+            initialize_bishop_frames();
+        } else {
+            initialize_identity_frames();
+        }
     }
 
     /**
@@ -136,6 +144,30 @@ private:
     }
 
     /**
+     * @brief Initialize identity frames for each segment of the polyline.
+     *
+     * This sets up identity matrices when not following the tangent.
+     */
+    void initialize_identity_frames()
+    {
+        m_frames.clear();
+        m_frames.reserve(m_points.size() - 1);
+
+        // Create identity matrix
+        std::array<std::array<Scalar, dim>, dim> identity{};
+        for (int i = 0; i < dim; ++i) {
+            for (int j = 0; j < dim; ++j) {
+                identity[i][j] = (i == j) ? 1.0 : 0.0;
+            }
+        }
+
+        // Use identity frame for all segments
+        for (size_t i = 0; i + 1 < m_points.size(); ++i) {
+            m_frames.push_back(identity);
+        }
+    }
+
+    /**
      * @brief Initialize Bishop frames for each segment of the polyline.
      *
      * This sets up the orientation frames used for transforming positions along the polyline.
@@ -185,7 +217,7 @@ private:
     std::vector<std::array<Scalar, dim>> m_points; ///< Points defining the polyline
     std::vector<std::array<std::array<Scalar, dim>, dim>>
         m_frames; ///< Bishop frames (one per segment)
+    bool m_follow_tangent = true; ///< Whether to follow the tangent of the curve
 };
 
 } // namespace stf
-

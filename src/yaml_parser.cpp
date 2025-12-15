@@ -503,7 +503,10 @@ std::unique_ptr<Transform<dim>> YamlParser<dim>::parse_polyline(
         throw YamlParseError("Polyline must have at least 2 points");
     }
 
-    return std::make_unique<Polyline<dim>>(std::move(points));
+    // Parse optional follow_tangent parameter (defaults to true)
+    bool follow_tangent = parse_bool(node, "follow_tangent", true);
+
+    return std::make_unique<Polyline<dim>>(std::move(points), follow_tangent);
 }
 
 template <int dim>

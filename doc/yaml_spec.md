@@ -338,12 +338,14 @@ points:
   - [<x1>, <y1>]             # 2D
   - [<x2>, <y2>]
   # ... additional points (minimum 2 required)
+follow_tangent: <boolean>    # Optional, defaults to true
 
 # OR for 3D
 points:
   - [<x1>, <y1>, <z1>]       # 3D
   - [<x2>, <y2>, <z2>]
   # ... additional points
+follow_tangent: <boolean>    # Optional, defaults to true
 ```
 
 #### External XYZ File
@@ -351,7 +353,13 @@ points:
 ```yaml
 type: polyline
 points_file: <path>          # Path to XYZ file containing points
+follow_tangent: <boolean>    # Optional, defaults to true
 ```
+
+#### Parameters
+
+- `points` or `points_file`: The vertices defining the polyline path
+- `follow_tangent` (optional, default: true): When true, uses Bishop frames to align the coordinate system with the polyline tangent direction. When false, uses identity transformations (no rotation)
 
 ### PolyBezier
 

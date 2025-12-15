@@ -182,6 +182,34 @@ TEST_CASE("transform", "[stf]")
         }
     }
 
+    SECTION("Polyline without follow_tangent")
+    {
+        // Polyline with follow_tangent = false should use identity transformations
+        stf::Polyline<3> transform({{0, 0, 0}, {1, 0, 0}, {1, 1, 0}}, false);
+
+        SECTION("[0, 0, 0] at t=0")
+        {
+            auto p0 = transform.transform({0, 0, 0}, 0);
+            REQUIRE_THAT(p0[0], Catch::Matchers::WithinAbs(0, 1e-6));
+            REQUIRE_THAT(p0[1], Catch::Matchers::WithinAbs(0, 1e-6));
+            REQUIRE_THAT(p0[2], Catch::Matchers::WithinAbs(0, 1e-6));
+            check_velocity(transform, {0, 0, 0}, 0);
+            check_jacobian(transform, {0, 0, 0}, 0);
+        }
+
+        SECTION("[1, 0, 0] at t=0.25")
+        {
+            // At t=0.25, we're at point (0.5, 0, 0)
+            // Input point [1, 0, 0] becomes [-0.5, 0, 0] with identity transform
+            auto p0 = transform.transform({1, 0, 0}, 0.25);
+            REQUIRE_THAT(p0[0], Catch::Matchers::WithinAbs(0.5, 1e-6));
+            REQUIRE_THAT(p0[1], Catch::Matchers::WithinAbs(0, 1e-6));
+            REQUIRE_THAT(p0[2], Catch::Matchers::WithinAbs(0, 1e-6));
+            check_velocity(transform, {1, 0, 0}, 0.25);
+            check_jacobian(transform, {1, 0, 0}, 0.25);
+        }
+    }
+
     SECTION("polybezier")
     {
         stf::PolyBezier<3> transform({
