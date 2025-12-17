@@ -676,13 +676,13 @@ std::unique_ptr<SpaceTimeFunction<dim>> YamlParser<dim>::parse_interpolate_funct
         //   (sin(πt - π/2) + 1) / 2 = (1 - cos(πt)) / 2  (standard cosine interpolation)
         interpolation_func = [num_periods, amplitude, phase, offset](Scalar t) {
             return offset + amplitude * 
-                (std::sin(t * num_periods * 2.0 * M_PI + phase - M_PI / 2.0) + 1.0) / 2.0;
+                (std::sin(t * num_periods * 2.0 * std::numbers::pi + phase - std::numbers::pi / 2.0) + 1.0) / 2.0;
         };
         // Derivative: d/dt[offset + A × (sin(t × n × 2π + φ - π/2) + 1) / 2]
         //           = A × n × π × cos(t × n × 2π + φ - π/2)
         interpolation_derivative = [num_periods, amplitude, phase](Scalar t) {
-            return amplitude * num_periods * M_PI * 
-                std::cos(t * num_periods * 2.0 * M_PI + phase - M_PI / 2.0);
+            return amplitude * num_periods * std::numbers::pi * 
+                std::cos(t * num_periods * 2.0 * std::numbers::pi + phase - std::numbers::pi / 2.0);
         };
     } else if (interpolation_type == "custom") {
         // For custom interpolation, we would need to parse mathematical expressions
