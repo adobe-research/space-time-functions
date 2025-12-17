@@ -5,6 +5,7 @@
 
 #include <array>
 #include <span>
+#include <numbers>
 
 namespace stf {
 
@@ -39,7 +40,7 @@ public:
     {
         if constexpr (dim == 3) {
             // Convert angle to radians
-            Scalar angle = t * m_angle * M_PI / 180.0;
+            Scalar angle = t * m_angle * std::numbers::pi / 180.0;
 
             // Normalize the axis
             Scalar axis_length = 0;
@@ -95,7 +96,7 @@ public:
             static_assert(dim == 2, "Rotation is only implemented for 2D and 3d");
 
             // Convert angle to radians
-            Scalar angle = t * m_angle * M_PI / 180.0;
+            Scalar angle = t * m_angle * std::numbers::pi / 180.0;
 
             pos[0] -= m_center[0];
             pos[1] -= m_center[1];
@@ -132,11 +133,11 @@ public:
             // Cross product of axis and position gives the velocity direction
             std::array<Scalar, dim> velocity;
             velocity[0] = (normalized_axis[1] * pos[2] - normalized_axis[2] * pos[1]) * m_angle *
-                          M_PI / 180.0;
+                          std::numbers::pi / 180.0;
             velocity[1] = (normalized_axis[2] * pos[0] - normalized_axis[0] * pos[2]) * m_angle *
-                          M_PI / 180.0;
+                          std::numbers::pi / 180.0;
             velocity[2] = (normalized_axis[0] * pos[1] - normalized_axis[1] * pos[0]) * m_angle *
-                          M_PI / 180.0;
+                          std::numbers::pi / 180.0;
 
             return velocity;
         } else {
@@ -147,8 +148,8 @@ public:
             pos[1] -= m_center[1];
 
             return {
-                -pos[1] * m_angle * M_PI / 180.0,
-                pos[0] * m_angle * M_PI / 180.0,
+                -pos[1] * m_angle * std::numbers::pi / 180.0,
+                pos[0] * m_angle * std::numbers::pi / 180.0,
             };
         }
     }
@@ -158,7 +159,7 @@ public:
         Scalar t) const override
     {
         // rotation angle (rad)
-        const Scalar theta = t * m_angle * M_PI / 180.0;
+        const Scalar theta = t * m_angle * std::numbers::pi / 180.0;
         std::array<std::array<Scalar, dim>, dim> J{};
 
         // since theta and center do not depend on pos, the Jacobian is the
