@@ -23,6 +23,7 @@ if (STF_YAML_PARSER)
     target_compile_features(stf PUBLIC cxx_std_20)
     target_link_libraries(stf PUBLIC yaml-cpp::yaml-cpp)
     target_compile_definitions(stf PUBLIC STF_YAML_PARSER_ENABLED)
+    set_target_properties(stf PROPERTIES POSITION_INDEPENDENT_CODE ON)
 else()
     # Header-only library without YAML support
     add_library(stf INTERFACE)
@@ -42,6 +43,7 @@ if (STF_BUILD_TESTS)
 
     file(GLOB TEST_FILES "${CMAKE_CURRENT_LIST_DIR}/tests/*.cpp")
     add_executable(stf_tests ${TEST_FILES})
+    set_target_properties(stf_tests PROPERTIES POSITION_INDEPENDENT_CODE ON)
     target_link_libraries(stf_tests
         PRIVATE
         stf::stf
